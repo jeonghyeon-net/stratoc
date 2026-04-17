@@ -5,25 +5,25 @@ test: test-architecture test-host test-terminal
 build: build-host build-terminal
 
 clean:
-	rm -f 01_SERVER/host 02_CLI/terminal
+	@rm -f 01_SERVER/host 02_CLI/terminal
 
 test-architecture:
-	set -e; \
+	@set -e; \
 	cd 00_ARCHITECTURE; \
 	go test -count=1 ./...
 
 test-host:
-	set -e; \
+	@set -e; \
 	cd 01_SERVER; \
 	go test -count=1 ./...
 
 test-terminal:
-	set -e; \
+	@set -e; \
 	cd 02_CLI; \
 	go test -count=1 ./...
 
 build-host:
-	set -e; \
+	@set -e; \
 	cd 01_SERVER; \
 	if [ -d cmd/host ]; then \
 		go build -o host ./cmd/host; \
@@ -37,7 +37,7 @@ build-host:
 	fi
 
 build-terminal:
-	set -e; \
+	@set -e; \
 	cd 02_CLI; \
 	if [ -d cmd/terminal ]; then \
 		go build -o terminal ./cmd/terminal; \

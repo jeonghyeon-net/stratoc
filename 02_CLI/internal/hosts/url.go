@@ -24,6 +24,11 @@ func normalizeURL(raw string) string {
 	return parsed.String()
 }
 
+func hasExplicitPort(raw string) bool {
+	parsed, err := url.Parse(normalizeURL(raw))
+	return err == nil && parsed.Host != "" && parsed.Port() != ""
+}
+
 func labelFromURL(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Host == "" {

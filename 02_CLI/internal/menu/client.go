@@ -15,7 +15,7 @@ func (menu *Menu) withSessionClient(
 	if !ok {
 		return nil
 	}
-	client, err := menu.remoteClient(host)
+	client, err := menu.remoteClient(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (menu *Menu) withSessionClient(
 		return err
 	}
 	state.setHost(host)
-	client, err = menu.remoteClient(host)
+	client, err = menu.remoteClient(ctx, host)
 	if err != nil {
 		return err
 	}
