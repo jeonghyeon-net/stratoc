@@ -19,7 +19,7 @@ func Load(args []string) Config {
 	values := loadDotEnv()
 	flags := flag.NewFlagSet("host", flag.ExitOnError)
 	config := Config{}
-	flags.StringVar(&config.Address, "address", env(values, "HOST_ADDRESS", ""), "listen address")
+	flags.StringVar(&config.Address, "address", env(values, "HOST_ADDRESS", ""), "listen host")
 	flags.StringVar(&config.AuthToken, "auth-token", env(values, "HOST_AUTH_TOKEN", env(values, "AUTHORIZATION_TOKEN", "")), "bearer token")
 	flags.StringVar(
 		&config.DefaultShellPath,

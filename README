@@ -33,7 +33,8 @@ Host
 - Default TLS file location:
   - `~/.config/terminal-share-host/tls/host.crt`
   - `~/.config/terminal-share-host/tls/host.key`
-- Default listen port is `62589` unless `HOST_ADDRESS` or `--address` is set.
+- Host always listens on fixed port `62589`.
+- `HOST_ADDRESS` and `--address` change bind host only. Port does not change.
 - Host and terminal do not share runtime state files.
 
 Terminal

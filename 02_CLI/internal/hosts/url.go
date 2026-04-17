@@ -18,12 +18,10 @@ func normalizeURL(raw string) string {
 		raw = "https://" + raw
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Host == "" || parsed.Hostname() == "" {
 		return raw
 	}
-	if parsed.Port() == "" {
-		parsed.Host = net.JoinHostPort(parsed.Hostname(), defaultServerPort)
-	}
+	parsed.Host = net.JoinHostPort(parsed.Hostname(), defaultServerPort)
 	parsed.Path = ""
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
@@ -32,15 +30,8 @@ func normalizeURL(raw string) string {
 
 func labelFromURL(raw string) string {
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed.Host == "" {
+	if err != nil || parsed.Hostname() == "" {
 		return raw
 	}
-	return fmt.Sprintf("# %s", displayHost(parsed))
-}
-
-func displayHost(parsed *url.URL) string {
-	if parsed.Port() == "" || parsed.Port() == defaultServerPort {
-		return parsed.Hostname()
-	}
-	return parsed.Host
+	return fmt.Sprintf("# %s", parsed.Hostname())
 }

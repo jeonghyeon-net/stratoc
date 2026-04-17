@@ -7,23 +7,22 @@ import (
 	"strings"
 )
 
-func splitAddress(address string) (string, int) {
-	if host, port, err := net.SplitHostPort(address); err == nil {
-		value, _ := strconv.Atoi(port)
-		return host, value
+func listenHost(address string) string {
+	address = strings.TrimSpace(address)
+	if address == "" {
+		return ""
 	}
-	parts := strings.Split(address, ":")
-	if len(parts) == 2 {
-		value, _ := strconv.Atoi(parts[1])
-		return parts[0], value
+	if host, _, err := net.SplitHostPort(address); err == nil {
+		return host
 	}
-	return strings.TrimSpace(address), 0
+	if strings.Count(address, ":") == 1 {
+		parts := strings.Split(address, ":")
+		return parts[0]
+	}
+	return address
 }
 
 func listenAddress(host string, port int) string {
-	if port < 1 {
-		return host
-	}
 	if host == "" {
 		return fmt.Sprintf(":%d", port)
 	}
