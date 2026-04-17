@@ -35,5 +35,12 @@ func labelFromURL(raw string) string {
 	if err != nil || parsed.Host == "" {
 		return raw
 	}
-	return fmt.Sprintf("# %s", parsed.Host)
+	return fmt.Sprintf("# %s", displayHost(parsed))
+}
+
+func displayHost(parsed *url.URL) string {
+	if parsed.Port() == "" || parsed.Port() == defaultServerPort {
+		return parsed.Hostname()
+	}
+	return parsed.Host
 }
