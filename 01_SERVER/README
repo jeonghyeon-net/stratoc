@@ -1,0 +1,64 @@
+01_SERVER
+
+이 디렉터리는 host 서버를 담는다.
+서버는 tmux 세션을 만들고, 지우고, 나열하고, 붙여 준다.
+클라이언트는 화면과 입력만 들고 다니고, 세션의 실제 수명과 상태는 서버 쪽 tmux 가 맡는다.
+
+실행 파일 이름은 host 다.
+빌드는 다음과 같이 한다.
+
+    cd 01_SERVER
+    go build ./cmd/host
+
+서버는 항상 HTTPS 와 WSS 만 쓴다.
+평문 HTTP 와 WS 는 허용하지 않는다.
+TLS 인증서와 키를 주지 않으면 self-signed 쌍을 스스로 만든다.
+기본 포트는 62589 다.
+포트는 바뀌지 않는다.
+HOST_ADDRESS 와 --address 는 바인드할 호스트만 정한다.
+
+주요 API 는 다음과 같다.
+
+    GET     /healthz
+    GET     /api/sessions
+    POST    /api/sessions
+    DELETE  /api/sessions/{name}
+    GET     /api/sessions/{name}/attach
+
+세션 생성은 서버 기본값을 따른다.
+세션 이름은 서버가 만든다.
+작업 디렉터리는 홈 디렉터리를 기본으로 쓴다.
+세션 상태 막대는 숨긴다.
+마우스는 켠다.
+스크롤백 한도도 늘린다.
+
+붙임은 tmux attach 로 한다.
+서버는 PTY 에서 읽은 바이트를 websocket 으로 내보낸다.
+중간에서 화면 diff 를 따로 계산하지 않는다.
+클라이언트가 새로 붙으면 먼저 붙어 있던 연결은 내려간다.
+
+환경 변수는 다음과 같다.
+
+    AUTHORIZATION_TOKEN
+    HOST_ADDRESS
+    HOST_AUTH_TOKEN
+    HOST_DEFAULT_SHELL_PATH
+    HOST_TLS_CERT_PATH
+    HOST_TLS_KEY_PATH
+    HOST_TMUX_BINARY_PATH
+
+토큰은 루트 .env 에 둘 수 있다.
+AUTHORIZATION_TOKEN 이 비어 있으면 서버가 새 값을 만든다.
+자동 생성한 TLS 파일 기본 위치는 다음과 같다.
+
+    ~/.config/terminal-share-host/tls/host.crt
+    ~/.config/terminal-share-host/tls/host.key
+
+시험은 다음과 같이 한다.
+
+    cd 01_SERVER
+    go test ./...
+
+이 디렉터리의 코드는 Uber Fx 를 쓴다.
+파일은 짧게 유지한다.
+세부 규약은 저장소의 architecture 테스트가 함께 검사한다.

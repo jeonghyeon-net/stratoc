@@ -1,41 +1,109 @@
 terminal share
 
-개요
-- `host`: tmux 세션을 공개하는 서버.
-- `terminal`: 서버에 붙는 클라이언트.
+이 프로그램은 tmux 세션을 네트워크 너머로 이어 쓰기 위한 것이다.
+주 기계에서 host 를 띄우고, 다른 기계에서 terminal 로 붙는다.
+세션은 연결이 끊겨도 남는다. 세션 이름과 작업 상태는 서버 쪽 tmux 가 보관한다.
+클라이언트는 화면과 키 입력만 맡는다. 같은 세션에 새 클라이언트가 붙으면 먼저 붙어 있던 쪽은 물러난다.
 
-구성
-- `01_SERVER`: Go 서버.
-- `02_CLI`: Go CLI.
-- `03_MOBILE`: 모바일 셸.
+프로그램은 세 부분으로 나뉜다.
 
-서버
-- `HTTPS/WSS` 만 사용.
-- 포트는 항상 `62589`.
-- 인증서가 없으면 self-signed 인증서를 만든다.
-- 호스트에는 `tmux` 가 있어야 한다.
+    01_SERVER   Go 로 쓴 서버. tmux 세션 생성, 삭제, 나열, 붙임을 맡는다.
+    02_CLI      Go 로 쓴 터미널 클라이언트. 서버 목록, 세션 목록, 연결을 맡는다.
+    03_MOBILE   모바일 셸과 붙임 코드 자리.
 
-클라이언트
-- 토큰 입력원:
-  - `--auth-token`
-  - `TERMINAL_AUTH_TOKEN`
-  - 호스트별 캐시 토큰
-- 기본 서버 입력원:
-  - `--server-url`
-  - `TERMINAL_SERVER_URL`
-- `.env` 는 읽지 않는다.
+서버 쪽 실행 파일 이름은 host 다.
+클라이언트 쪽 실행 파일 이름은 terminal 이다.
 
-설치
-```bash
-./setup.sh
-```
+서버는 tmux 위에서 동작한다.
+새 세션을 만들 때 shell, 작업 디렉터리, tmux 옵션은 서버 쪽 기본값을 따른다.
+세션 이름은 서버가 만든다.
+세션 상태 막대는 숨긴다.
+마우스는 켠다.
+스크롤백 한도도 같이 늘린다.
 
-시험
-```bash
-make test
-```
+통신은 항상 HTTPS 와 WSS 만 쓴다.
+평문 HTTP 나 WS 는 쓰지 않는다.
+서버는 TLS 인증서와 키를 따로 주지 않으면 self-signed 쌍을 스스로 만든다.
+자동 생성한 TLS 파일 기본 위치는 다음과 같다.
 
-빌드
-```bash
-make build
-```
+    ~/.config/terminal-share-host/tls/host.crt
+    ~/.config/terminal-share-host/tls/host.key
+
+서버는 고정 포트 62589 를 쓴다.
+HOST_ADDRESS 와 --address 는 바인드할 호스트만 정한다.
+포트는 바뀌지 않는다.
+이 결정은 수동 서버 추가를 단순하게 만들기 위한 것이다.
+클라이언트는 주소에 포트가 없어도 62589 를 붙여 해석한다.
+기본 포트는 목록 라벨에서 굳이 드러내지 않는다.
+
+서버는 다음 API 를 낸다.
+
+    GET     /healthz
+    GET     /api/sessions
+    POST    /api/sessions
+    DELETE  /api/sessions/{name}
+    GET     /api/sessions/{name}/attach
+
+붙임 경로는 websocket 이다.
+클라이언트는 PTY 크기를 처음 보낼 때 헤더로 보내고, 실행 중 창 크기가 바뀌면 제어 메시지로 보낸다.
+서버는 tmux attach 로부터 나오는 바이트를 읽어 websocket 으로 내보낸다.
+클라이언트는 이를 stdout 에 그대로 쓴다.
+중간에서 화면 전체를 다시 계산하지 않는다.
+다만 tmux 나 셸이 다시 그린 바이트는 그대로 흐른다.
+
+서버 환경 변수는 다음과 같다.
+
+    AUTHORIZATION_TOKEN
+    HOST_ADDRESS
+    HOST_AUTH_TOKEN
+    HOST_DEFAULT_SHELL_PATH
+    HOST_TLS_CERT_PATH
+    HOST_TLS_KEY_PATH
+    HOST_TMUX_BINARY_PATH
+
+토큰은 루트 .env 에 둘 수 있다.
+호스트는 AUTHORIZATION_TOKEN 이 비어 있으면 새 값을 만들어 채운다.
+클라이언트는 .env 를 읽지 않는다.
+클라이언트가 읽는 토큰 입력원은 다음 셋뿐이다.
+
+    --auth-token
+    TERMINAL_AUTH_TOKEN
+    호스트별 캐시 토큰
+
+클라이언트가 읽는 기본 서버 입력원은 다음 둘뿐이다.
+
+    --server-url
+    TERMINAL_SERVER_URL
+
+클라이언트는 서버 목록을 먼저 보여 준다.
+세션 목록은 서버를 연 뒤에만 읽는다.
+서버 목록에는 로컬, 자동 감지, 수동 추가 항목이 따로 보인다.
+자동 감지는 LAN 에서 mDNS 와 HTTPS 를 함께 쓴다.
+수동 추가는 사용자가 직접 주소를 적는다.
+수동 추가 시 토큰 입력은 필수다.
+토큰 캐시 파일 기본 위치는 다음과 같다.
+
+    ~/.config/terminal-share-cli/servers.json
+
+설치 스크립트는 다음과 같이 쓴다.
+
+    ./setup.sh
+
+이 스크립트는 Homebrew, tmux, mise, 프로젝트 도구, hook, 시험, 빌드를 차례로 처리한다.
+또한 ~/.tmux.conf 에 필요한 키 설정을 넣고, 루트 .env 가 없으면 만든다.
+권한도 조인다. 기존 tmux 서버 설정은 다시 읽힌다.
+
+시험은 다음과 같이 한다.
+
+    make test
+
+빌드는 다음과 같이 한다.
+
+    make build
+
+서버와 클라이언트는 Uber Fx 를 쓴다.
+또한 01_SERVER 와 02_CLI 아래의 Go 파일은 짧게 유지한다.
+저장소 규약은 00_ARCHITECTURE 아래 테스트로 검사한다.
+이 프로젝트는 편의보다 단순함을 먼저 택한다.
+그래서 포트는 하나로 고정하고, 프로토콜도 하나로 고정하고, 클라이언트의 입력원도 몇 개로 잘라 둔다.
+이 문서는 그 결정들을 잊지 않기 위해 둔다.
