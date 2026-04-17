@@ -1,25 +1,14 @@
-# 00_ARCHITECTURE
+00_ARCHITECTURE
 
-Repo-wide architecture rule tests live here.
+개요
+- 저장소 전체 규약을 검사하는 테스트 모음.
 
-## Goals
-- Keep repo shape and cross-project conventions testable.
-- Add rule files in numbered order: `tests/00_*_test.go`, `tests/01_*_test.go`, `tests/02_*_test.go`, ...
-- Use standard `testing` package first. Keep deps light.
-
-## Run
+실행
 ```bash
 cd 00_ARCHITECTURE
 go test ./...
 ```
 
-## Layout
-- `internal/testutil`: shared helpers for locating repo root and asserting files/dirs.
-- `tests`: numbered rule files.
-
-## Rule file convention
-- `00_*`: repo-wide smoke/layout rules.
-- `01_*`: server rules.
-- `02_*`: CLI rules.
-- `03_*`: mobile rules.
-- Keep one concern per file when possible.
+구성
+- `utils`: 공통 보조 함수.
+- `tests`: 번호가 붙은 규칙 테스트.
