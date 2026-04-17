@@ -1,0 +1,11 @@
+pre-commit:
+  commands:
+    architecture-tests:
+      run: make test
+      always_run: true
+
+pre-push:
+  commands:
+    architecture-tests:
+      run: make test
+      always_run: true

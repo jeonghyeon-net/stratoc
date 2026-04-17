@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeonghyeon-net/stratoc/00_ARCHITECTURE/internal/utils"
+	"github.com/jeonghyeon-net/stratoc/00_ARCHITECTURE/utils"
 )
 
 func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *testing.T) {
@@ -18,6 +18,7 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 	}
 
 	expectedEntries := []string{
+		".claude:dir",
 		".mise.toml:file",
 		"00_ARCHITECTURE:dir",
 		"01_SERVER:dir",
@@ -25,6 +26,7 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 		"03_ANDROID:dir",
 		"04_IOS:dir",
 		"README:file",
+		"lefthook.yml:file",
 		"makefile:file",
 	}
 

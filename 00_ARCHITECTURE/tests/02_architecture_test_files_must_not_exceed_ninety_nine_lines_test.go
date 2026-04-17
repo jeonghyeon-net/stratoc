@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jeonghyeon-net/stratoc/00_ARCHITECTURE/internal/utils"
+	"github.com/jeonghyeon-net/stratoc/00_ARCHITECTURE/utils"
 )
 
 func TestArchitectureTestFilesMustNotExceedNinetyNineLines(t *testing.T) {

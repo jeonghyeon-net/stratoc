@@ -14,7 +14,7 @@ func FindRepositoryRootPath(t *testing.T) string {
 		t.Fatal("runtime.Caller(0) failed")
 	}
 
-	rootPath, err := filepath.Abs(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	rootPath, err := filepath.Abs(filepath.Join(filepath.Dir(file), "..", ".."))
 	if err != nil {
 		t.Fatalf("resolve repository root path: %v", err)
 	}
