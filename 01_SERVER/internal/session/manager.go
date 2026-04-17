@@ -9,9 +9,10 @@ import (
 var namePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
 type Manager struct {
-	binaryPath       string
-	defaultShellPath string
-	runner           Runner
+	binaryPath              string
+	defaultShellPath        string
+	defaultWorkingDirectory string
+	runner                  Runner
 }
 
 func New(binaryPath string, defaultShellPath string, runner Runner) *Manager {
@@ -24,10 +25,14 @@ func New(binaryPath string, defaultShellPath string, runner Runner) *Manager {
 	if defaultShellPath == "" {
 		defaultShellPath = "/bin/sh"
 	}
+	defaultWorkingDirectory, err := os.UserHomeDir()
+	if err != nil || defaultWorkingDirectory == "" {
+		defaultWorkingDirectory = os.Getenv("HOME")
+	}
 	if runner == nil {
 		runner = ProcessRunner{}
 	}
-	return &Manager{binaryPath, defaultShellPath, runner}
+	return &Manager{binaryPath, defaultShellPath, defaultWorkingDirectory, runner}
 }
 
 func ValidateName(name string) error {

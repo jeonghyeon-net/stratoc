@@ -12,8 +12,12 @@ func (manager *Manager) Create(ctx context.Context, request CreateRequest) (stri
 		return "", err
 	}
 	arguments := []string{"new-session", "-d", "-s", name}
+	workingDirectory := manager.defaultWorkingDirectory
 	if request.WorkingDirectory != "" {
-		arguments = append(arguments, "-c", request.WorkingDirectory)
+		workingDirectory = request.WorkingDirectory
+	}
+	if workingDirectory != "" {
+		arguments = append(arguments, "-c", workingDirectory)
 	}
 	shellPath := manager.defaultShellPath
 	if request.ShellPath != "" {
