@@ -5,7 +5,7 @@ func (menu *Menu) addServer() error {
 	if err != nil {
 		return err
 	}
-	token, err := menu.prompt("인증 토큰 (비우면 캐시 없음)", false)
+	token, err := menu.prompt("인증 토큰", true)
 	if err != nil {
 		return err
 	}
