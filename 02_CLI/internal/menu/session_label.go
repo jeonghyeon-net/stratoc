@@ -7,9 +7,19 @@ import (
 )
 
 func sessionLabel(item remote.Session) string {
-	title := strings.TrimSpace(item.Title)
+	title := sanitizeText(item.Title)
 	if title != "" {
 		return title
 	}
-	return item.Name
+	return sanitizeText(item.Name)
+}
+
+func sanitizeText(value string) string {
+	value = strings.TrimSpace(value)
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, value)
 }

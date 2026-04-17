@@ -16,7 +16,7 @@ func loadDotEnv() map[string]string {
 	if strings.TrimSpace(values["AUTHORIZATION_TOKEN"]) == "" {
 		values["AUTHORIZATION_TOKEN"] = defaultAuthorizationToken()
 		content := strings.Join(upsertAuthToken(lines, values["AUTHORIZATION_TOKEN"]), "\n") + "\n"
-		_ = os.WriteFile(path, []byte(content), 0o644)
+		_ = os.WriteFile(path, []byte(content), 0o600)
 	}
 	return values
 }

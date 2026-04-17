@@ -25,23 +25,33 @@ Host
   - `HOST_ADDRESS`
   - `HOST_AUTH_TOKEN`
   - `HOST_DEFAULT_SHELL_PATH`
+  - `HOST_TLS_CERT_PATH`
+  - `HOST_TLS_KEY_PATH`
   - `HOST_TMUX_BINARY_PATH`
-- If `AUTHORIZATION_TOKEN` is empty, host generates temporary token and prints it on startup.
+- If `.env` is missing or `AUTHORIZATION_TOKEN` is empty, host writes random token into root `.env` on startup.
+- Without TLS cert/key, host stays local-only for secure usage. LAN discovery is disabled.
+- With TLS cert/key, host serves HTTPS/WSS and advertises itself over mDNS.
+- Default listen port is random high port in `49152-65535` unless `HOST_ADDRESS` or `--address` is set.
 
 Terminal
 - Binary: `terminal`
-- Auto-discovers hosts on local network with mDNS.
-- Also includes saved hosts and default `http://127.0.0.1:8080`.
-- Env:
-  - `AUTHORIZATION_TOKEN`
-  - `TERMINAL_SERVER_URL`
+- Reads token only from:
+  - `--auth-token`
   - `TERMINAL_AUTH_TOKEN`
+  - per-host cached token
+- Reads default server only from:
+  - `--server-url`
+  - `TERMINAL_SERVER_URL`
+  - local host state file written by host
+- Auto-discovers LAN hosts with mDNS only when they advertise secure HTTPS service.
+- Server list shows local, auto-discovered, and manually added hosts separately.
 
 Setup
 - `./setup.sh`
 - Installs Homebrew, tmux, mise, project tools, lefthook, tests, builds.
 - Updates `~/.tmux.conf` with extended-keys settings for tmux.
-- Restarts tmux server so new settings apply immediately.
+- Creates root `.env` if missing and locks it to user-only permissions.
+- Does not kill existing tmux server.
 
 Run tests
 - `make test`

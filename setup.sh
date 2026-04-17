@@ -48,11 +48,11 @@ install_brew_packages() {
 }
 
 ensure_dotenv() {
-  if [[ -f "$ROOT_DIR/.env" ]]; then
-    return
+  if [[ ! -f "$ROOT_DIR/.env" ]]; then
+    log "Creating empty .env. host fills AUTHORIZATION_TOKEN on first start"
+    : >"$ROOT_DIR/.env"
   fi
-  log "Creating empty .env. host fills AUTHORIZATION_TOKEN on first start"
-  : >"$ROOT_DIR/.env"
+  chmod 600 "$ROOT_DIR/.env"
 }
 
 rewrite_tmux_config() {
@@ -119,11 +119,6 @@ install_hooks() {
   (cd "$ROOT_DIR" && mise exec -- lefthook install)
 }
 
-restart_tmux_server() {
-  log "Restarting tmux server to apply config"
-  tmux kill-server >/dev/null 2>&1 || true
-}
-
 build_project() {
   log "Running tests"
   (cd "$ROOT_DIR" && mise exec -- make test)
@@ -139,8 +134,7 @@ main() {
   trust_and_install_tools
   install_hooks
   build_project
-  restart_tmux_server
-  log "LAN discovery uses mDNS and works automatically on same network"
+  log "LAN discovery uses mDNS and requires HTTPS-enabled host certificates"
   log "Setup complete"
 }
 

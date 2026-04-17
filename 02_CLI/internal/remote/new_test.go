@@ -11,3 +11,9 @@ func TestNewAddsHTTPPrefixWhenMissing(t *testing.T) {
 		t.Fatalf("unexpected base url: %s", got)
 	}
 }
+
+func TestNewRejectsRemoteHTTP(t *testing.T) {
+	if _, err := New("http://10.0.0.2:8080", ""); err == nil {
+		t.Fatal("expected remote http error")
+	}
+}

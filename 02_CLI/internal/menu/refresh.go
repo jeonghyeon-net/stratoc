@@ -3,6 +3,8 @@ package menu
 import "context"
 
 func (menu *Menu) refreshHosts(ctx context.Context, previous state) (state, error) {
+	ctx, cancel := timeoutContext(ctx)
+	defer cancel()
 	hostsList, err := menu.hosts.List(ctx)
 	if err != nil {
 		return state{}, err
@@ -13,6 +15,8 @@ func (menu *Menu) refreshHosts(ctx context.Context, previous state) (state, erro
 }
 
 func (menu *Menu) refreshSessions(ctx context.Context, current state) (state, error) {
+	ctx, cancel := timeoutContext(ctx)
+	defer cancel()
 	host, ok := current.host()
 	if !ok {
 		current.View = viewServers

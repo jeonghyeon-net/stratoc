@@ -7,6 +7,8 @@ import (
 )
 
 func (menu *Menu) openHost(ctx context.Context, state state) (state, error) {
+	ctx, cancel := timeoutContext(ctx)
+	defer cancel()
 	host, ok := state.host()
 	if !ok {
 		return state, nil

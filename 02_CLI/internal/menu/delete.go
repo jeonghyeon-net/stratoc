@@ -7,6 +7,8 @@ import (
 )
 
 func (menu *Menu) removeSession(ctx context.Context, state *state) error {
+	ctx, cancel := timeoutContext(ctx)
+	defer cancel()
 	if len(state.Sessions) == 0 || state.SessionIdx >= len(state.Sessions) {
 		return nil
 	}

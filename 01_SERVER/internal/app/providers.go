@@ -30,6 +30,6 @@ func newSessionManager(config Config) (*session.Manager, error) {
 	return session.New(config.TmuxBinaryPath, config.DefaultShellPath, nil), nil
 }
 
-func newAnnouncer(listener net.Listener) *lan.Announcer {
-	return lan.New(lan.ParsePort(listener.Addr().String()))
+func newAnnouncer(config Config, listener net.Listener) *lan.Announcer {
+	return lan.New(lan.ParsePort(listener.Addr().String()), serveScheme(config))
 }

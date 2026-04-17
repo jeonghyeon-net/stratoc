@@ -13,7 +13,7 @@ type hostState struct {
 	URL string `json:"url"`
 }
 
-func writeHostState(listener net.Listener) error {
+func writeHostState(listener net.Listener, scheme string) error {
 	path, err := hostStatePath()
 	if err != nil {
 		return err
@@ -21,7 +21,7 @@ func writeHostState(listener net.Listener) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	data, err := json.Marshal(hostState{URL: localURL(listener)})
+	data, err := json.Marshal(hostState{URL: localURL(listener, scheme)})
 	if err != nil {
 		return err
 	}

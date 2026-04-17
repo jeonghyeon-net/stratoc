@@ -54,10 +54,20 @@ func parseLine(line string) (Item, error) {
 
 func chooseTitle(values ...string) string {
 	for _, value := range values {
-		value = strings.TrimSpace(value)
+		value = sanitizeTitle(value)
 		if value != "" {
 			return value
 		}
 	}
 	return ""
+}
+
+func sanitizeTitle(value string) string {
+	value = strings.TrimSpace(value)
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return -1
+		}
+		return r
+	}, value)
 }

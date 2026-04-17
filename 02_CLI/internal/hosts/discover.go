@@ -29,8 +29,12 @@ func discover(ctx context.Context, token string) ([]Item, error) {
 			if !ok || entry == nil {
 				return items, nil
 			}
+			scheme := schemeFromText(entry.Text)
+			if scheme == "" {
+				continue
+			}
 			for _, address := range entry.AddrIPv4 {
-				url := (&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", address.String(), entry.Port)}).String()
+				url := (&url.URL{Scheme: scheme, Host: fmt.Sprintf("%s:%d", address.String(), entry.Port)}).String()
 				if !available(ctx, url) {
 					continue
 				}

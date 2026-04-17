@@ -30,7 +30,16 @@ func listenAddress(host string, port int) string {
 	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
-func localURL(listener net.Listener) string {
+func loopbackHost(host string) bool {
+	host = strings.Trim(host, "[]")
+	if host == "" || host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func localURL(listener net.Listener, scheme string) string {
 	tcp, _ := listener.Addr().(*net.TCPAddr)
 	port := 0
 	if tcp != nil {
@@ -39,5 +48,5 @@ func localURL(listener net.Listener) string {
 	if port < 1 {
 		return ""
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d", port)
+	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
 }

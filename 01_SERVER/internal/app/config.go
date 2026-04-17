@@ -10,6 +10,8 @@ type Config struct {
 	Address          string
 	AuthToken        string
 	DefaultShellPath string
+	TLSCertPath      string
+	TLSKeyPath       string
 	TmuxBinaryPath   string
 }
 
@@ -25,6 +27,8 @@ func Load(args []string) Config {
 		env(values, "HOST_DEFAULT_SHELL_PATH", os.Getenv("SHELL")),
 		"default shell path",
 	)
+	flags.StringVar(&config.TLSCertPath, "tls-cert-path", env(values, "HOST_TLS_CERT_PATH", ""), "tls certificate path")
+	flags.StringVar(&config.TLSKeyPath, "tls-key-path", env(values, "HOST_TLS_KEY_PATH", ""), "tls private key path")
 	flags.StringVar(
 		&config.TmuxBinaryPath,
 		"tmux-binary-path",

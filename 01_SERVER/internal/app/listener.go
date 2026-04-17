@@ -15,6 +15,14 @@ const (
 
 func newListener(config Config) (net.Listener, error) {
 	host, port := splitAddress(config.Address)
+	if !serveSecure(config) {
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if !loopbackHost(host) {
+			return nil, fmt.Errorf("https required for non-loopback host: %s", host)
+		}
+	}
 	if port > 0 {
 		return net.Listen("tcp", listenAddress(host, port))
 	}
