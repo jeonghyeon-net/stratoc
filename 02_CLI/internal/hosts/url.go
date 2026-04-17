@@ -2,9 +2,12 @@ package hosts
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 )
+
+const defaultServerPort = "62589"
 
 func normalizeURL(raw string) string {
 	raw = strings.TrimSpace(raw)
@@ -18,15 +21,13 @@ func normalizeURL(raw string) string {
 	if err != nil || parsed.Host == "" {
 		return raw
 	}
+	if parsed.Port() == "" {
+		parsed.Host = net.JoinHostPort(parsed.Hostname(), defaultServerPort)
+	}
 	parsed.Path = ""
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String()
-}
-
-func hasExplicitPort(raw string) bool {
-	parsed, err := url.Parse(normalizeURL(raw))
-	return err == nil && parsed.Host != "" && parsed.Port() != ""
 }
 
 func labelFromURL(raw string) string {

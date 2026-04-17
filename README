@@ -33,7 +33,7 @@ Host
 - Default TLS file location:
   - `~/.config/terminal-share-host/tls/host.crt`
   - `~/.config/terminal-share-host/tls/host.key`
-- Default listen port is random high port in `49152-65535` unless `HOST_ADDRESS` or `--address` is set.
+- Default listen port is `62589` unless `HOST_ADDRESS` or `--address` is set.
 - Host and terminal do not share runtime state files.
 
 Terminal
@@ -47,7 +47,6 @@ Terminal
   - `TERMINAL_SERVER_URL`
 - Auto-discovers LAN hosts with mDNS over HTTPS only.
 - Server list shows local, auto-discovered, and manually added hosts separately.
-- Manual hosts may omit port. CLI probes current high-port host listener when port is missing.
 - CLI does not read `.env`.
 - CLI cache file location:
   - `~/.config/terminal-share-cli/servers.json`
