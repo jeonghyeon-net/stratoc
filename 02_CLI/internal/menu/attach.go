@@ -57,9 +57,7 @@ func (menu *Menu) stream(connection *websocket.Conn, mutex *sync.Mutex) error {
 	go readOutput(menu.stdout, connection, errors, reasons)
 	err := finish(connection, mutex, errors, reasons)
 	cancel()
-	interruptRead(menu.stdin)
 	waitInputStop(stopped)
-	resetRead(menu.stdin)
 	return err
 }
 

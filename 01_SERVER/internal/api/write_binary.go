@@ -33,17 +33,3 @@ func releaseChunks(chunks []*chunk) {
 		putChunk(item)
 	}
 }
-
-func resetTimer(timer *time.Timer) {
-	stopTimer(timer)
-	timer.Reset(coalesceWait)
-}
-
-func stopTimer(timer *time.Timer) {
-	if !timer.Stop() {
-		select {
-		case <-timer.C:
-		default:
-		}
-	}
-}

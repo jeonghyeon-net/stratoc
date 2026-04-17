@@ -38,7 +38,7 @@ func (menu *Menu) Run() error {
 			state = showError(state, err)
 			continue
 		}
-		if applyMove(&state, event) {
+		if applyMove(menu, &state, event) {
 			continue
 		}
 	}

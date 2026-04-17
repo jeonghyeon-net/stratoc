@@ -21,8 +21,17 @@ func TestCreateBuildsDetachedCommand(t *testing.T) {
 	if joined != "new-session -d -s alpha -c /tmp/work /bin/zsh" {
 		t.Fatalf("unexpected tmux args: %s", joined)
 	}
-	if strings.Join(runner.calls[1].args, " ") != "set-option -q -t alpha status off" {
-		t.Fatalf("status option not applied: %#v", runner.calls)
+	want := []string{
+		"set-option -q -t alpha status off",
+		"set-option -q -t alpha mouse on",
+		"set-window-option -q -t alpha history-limit 50000",
+	}
+	got := []string{}
+	for _, call := range runner.calls[1:] {
+		got = append(got, strings.Join(call.args, " "))
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("session options not applied: %#v", got)
 	}
 }
 

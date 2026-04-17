@@ -20,11 +20,20 @@ func readInput(
 	stopped chan<- struct{},
 ) {
 	defer close(stopped)
-	setNonblock(input, true)
-	defer setNonblock(input, false)
+	stop, err := watchCancel(ctx)
+	if err != nil {
+		errorChannel <- err
+		return
+	}
+	defer stop()
 	buffer := make([]byte, 32*1024)
 	for {
-		if ctx.Err() != nil {
+		ready, err := waitInput(input)
+		if err != nil {
+			errorChannel <- err
+			return
+		}
+		if !ready || ctx.Err() != nil {
 			return
 		}
 		count, err := input.Read(buffer)
@@ -38,11 +47,7 @@ func readInput(
 				return
 			}
 		}
-		if err == nil {
-			continue
-		}
-		if canRetryRead(err) {
-			time.Sleep(10 * time.Millisecond)
+		if err == nil || canRetryRead(err) {
 			continue
 		}
 		if ctx.Err() != nil {
@@ -56,10 +61,3 @@ func readInput(
 func canRetryRead(err error) bool {
 	return stderrors.Is(err, os.ErrDeadlineExceeded) || stderrors.Is(err, unix.EAGAIN)
 }
-
-func setNonblock(input *os.File, enabled bool) {
-	_ = unix.SetNonblock(int(input.Fd()), enabled)
-}
-
-func interruptRead(input *os.File) { _ = input.SetReadDeadline(time.Now()) }
-func resetRead(input *os.File)     { _ = input.SetReadDeadline(time.Time{}) }

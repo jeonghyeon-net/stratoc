@@ -3,7 +3,6 @@ package api
 import "time"
 
 const (
-	coalesceWait    = 2 * time.Millisecond
 	keepAlivePeriod = 30 * time.Second
 	readLimitBytes  = 1 << 20
 	readBufferBytes = 32 * 1024

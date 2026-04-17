@@ -3,21 +3,27 @@ package session
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 )
 
-func TestApplySessionOptionsHidesStatusBar(t *testing.T) {
+func TestApplySessionOptionsSetsSessionDefaults(t *testing.T) {
 	runner := &fakeRunner{}
 	manager := New("tmux", "/bin/sh", runner)
 	if err := manager.applySessionOptions(context.Background(), "alpha"); err != nil {
 		t.Fatalf("applySessionOptions returned error: %v", err)
 	}
-	call := runner.calls[0]
-	want := []string{"set-option", "-q", "-t", "alpha", "status", "off"}
-	for index := range want {
-		if call.args[index] != want[index] {
-			t.Fatalf("unexpected arg %d: got=%q want=%q", index, call.args[index], want[index])
-		}
+	joined := []string{}
+	for _, call := range runner.calls {
+		joined = append(joined, strings.Join(call.args, " "))
+	}
+	want := []string{
+		"set-option -q -t alpha status off",
+		"set-option -q -t alpha mouse on",
+		"set-window-option -q -t alpha history-limit 50000",
+	}
+	if strings.Join(joined, "|") != strings.Join(want, "|") {
+		t.Fatalf("unexpected commands: %#v", joined)
 	}
 }
 
