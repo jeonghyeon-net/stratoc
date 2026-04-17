@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const tlsDirectorySubpath = ".config/terminal-share-host/tls"
+const tlsDirectorySubpath = ".config/stratoc-host/tls"
 
 func ensureTLSConfig(config Config) Config {
 	config.TLSCertPath, config.TLSKeyPath = tlsPaths(config)

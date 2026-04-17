@@ -51,5 +51,5 @@ ENVIRONMENT
 
 FILES
 -----
-    ~/.config/terminal-share-host/tls/host.crt
-    ~/.config/terminal-share-host/tls/host.key
+    ~/.config/stratoc-host/tls/host.crt
+    ~/.config/stratoc-host/tls/host.key

@@ -68,9 +68,9 @@ SERVER SOURCES
 
 FILES
 -----
-    ~/.config/terminal-share-host/tls/host.crt
-    ~/.config/terminal-share-host/tls/host.key
-    ~/.config/terminal-share-cli/servers.json
+    ~/.config/stratoc-host/tls/host.crt
+    ~/.config/stratoc-host/tls/host.key
+    ~/.config/stratoc-cli/servers.json
 
 ENVIRONMENT
 -----------

@@ -43,4 +43,4 @@ SERVER SOURCES
 
 FILES
 -----
-    ~/.config/terminal-share-cli/servers.json
+    ~/.config/stratoc-cli/servers.json

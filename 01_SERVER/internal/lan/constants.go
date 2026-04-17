@@ -1,6 +1,6 @@
 package lan
 
 const (
-	serviceName = "_terminal-share._tcp"
+	serviceName = "_stratoc._tcp"
 	domainName  = "local."
 )

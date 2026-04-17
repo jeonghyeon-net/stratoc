@@ -22,7 +22,7 @@ func writeSelfSignedCertificate(certPath string, keyPath string) error {
 		return err
 	}
 	template := &x509.Certificate{
-		SerialNumber: serial, Subject: pkix.Name{CommonName: "terminal-share"},
+		SerialNumber: serial, Subject: pkix.Name{CommonName: "stratoc"},
 		DNSNames: []string{"localhost"}, IPAddresses: []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(3650 * 24 * time.Hour),
 		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

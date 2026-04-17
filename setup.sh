@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TMUX_CONFIG_FILE="${HOME}/.tmux.conf"
-TMUX_BLOCK_START="# terminal-share setup start"
-TMUX_BLOCK_END="# terminal-share setup end"
+TMUX_BLOCK_START="# stratoc setup start"
+TMUX_BLOCK_END="# stratoc setup end"
 
 log() {
   printf '[setup] %s\n' "$*"
@@ -90,7 +90,7 @@ PY
 }
 
 validate_tmux_config() {
-  local socket_name="terminal-share-setup"
+  local socket_name="stratoc-setup"
   tmux -L "$socket_name" kill-server >/dev/null 2>&1 || true
   tmux -L "$socket_name" -f "$TMUX_CONFIG_FILE" new-session -d -s "$socket_name"
   [[ "$(tmux -L "$socket_name" show -gv extended-keys)" == "on" ]]
