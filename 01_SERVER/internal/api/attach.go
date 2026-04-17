@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -53,7 +52,6 @@ func (server *Server) runAttach(name string, cancel context.CancelFunc, command 
 	go keepAlive(connection, &writeMutex, result)
 	go func() { result <- command.Wait() }()
 	if err := <-result; err != nil && !isExpectedClose(err) {
-		log.Printf("attach %s ended: %v", name, err)
 		closeConnection(err.Error())
 		return
 	}

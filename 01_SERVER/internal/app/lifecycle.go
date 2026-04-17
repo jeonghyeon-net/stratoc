@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
 
@@ -13,10 +12,7 @@ import (
 func registerLifecycle(lifecycle fx.Lifecycle, config Config, host *http.Server, listener net.Listener, announcer *lan.Announcer) {
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			if err := announcer.Start(); err != nil {
-				log.Printf("lan announce disabled: %v", err)
-			}
-			log.Printf("host listening on %s", listener.Addr().String())
+			_ = announcer.Start()
 			go serveHost(config, host, listener)
 			return nil
 		},
@@ -28,8 +24,5 @@ func registerLifecycle(lifecycle fx.Lifecycle, config Config, host *http.Server,
 }
 
 func serveHost(config Config, host *http.Server, listener net.Listener) {
-	err := host.ServeTLS(listener, config.TLSCertPath, config.TLSKeyPath)
-	if err != nil && err != http.ErrServerClosed {
-		log.Printf("host stopped: %v", err)
-	}
+	_ = host.ServeTLS(listener, config.TLSCertPath, config.TLSKeyPath)
 }
