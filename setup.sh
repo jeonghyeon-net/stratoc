@@ -91,10 +91,11 @@ PY
 
 validate_tmux_config() {
   local socket_name="terminal-share-setup"
-  tmux -L "$socket_name" -f "$TMUX_CONFIG_FILE" start-server
+  tmux -L "$socket_name" kill-server >/dev/null 2>&1 || true
+  tmux -L "$socket_name" -f "$TMUX_CONFIG_FILE" new-session -d -s "$socket_name"
   [[ "$(tmux -L "$socket_name" show -gv extended-keys)" == "on" ]]
   [[ "$(tmux -L "$socket_name" show -gv extended-keys-format)" == "csi-u" ]]
-  tmux -L "$socket_name" kill-server
+  tmux -L "$socket_name" kill-server >/dev/null 2>&1 || true
 }
 
 configure_tmux() {
@@ -109,14 +110,14 @@ configure_tmux() {
 
 trust_and_install_tools() {
   log "Trusting mise config"
-  (cd "$ROOT_DIR" && mise trust -y .mise.toml)
+  mise trust -y -C "$HOME" "$ROOT_DIR/.mise.toml"
   log "Installing mise tools"
-  (cd "$ROOT_DIR" && mise install)
+  mise -C "$ROOT_DIR" install
 }
 
 install_hooks() {
   log "Installing lefthook hooks"
-  (cd "$ROOT_DIR" && mise exec -- lefthook install)
+  mise -C "$ROOT_DIR" exec -- lefthook install
 }
 
 restart_tmux_server() {
@@ -126,9 +127,9 @@ restart_tmux_server() {
 
 build_project() {
   log "Running tests"
-  (cd "$ROOT_DIR" && mise exec -- make test)
+  mise -C "$ROOT_DIR" exec -- make test
   log "Building host and terminal"
-  (cd "$ROOT_DIR" && mise exec -- make build)
+  mise -C "$ROOT_DIR" exec -- make build
 }
 
 main() {
