@@ -1,5 +1,6 @@
-terminal share
+stratoc
 
+이 이름은 strato 와 c 를 잇는다.
 이 프로그램은 tmux 세션을 네트워크 너머로 이어 쓰기 위한 것이다.
 주 기계에서 host 를 띄우고, 다른 기계에서 terminal 로 붙는다.
 세션은 연결이 끊겨도 남는다. 세션 이름과 작업 상태는 서버 쪽 tmux 가 보관한다.
