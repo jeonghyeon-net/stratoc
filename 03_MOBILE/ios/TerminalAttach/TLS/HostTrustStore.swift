@@ -1,15 +1,30 @@
 import Foundation
 
 public final class HostTrustStore {
-  private var values: [String: String] = [:]
+  private let defaults: UserDefaults
+  private let prefix: String
 
-  public init() {}
+  public init(
+    defaults: UserDefaults = .standard,
+    prefix: String = "stratoc.mobile.host-trust/"
+  ) {
+    self.defaults = defaults
+    self.prefix = prefix
+  }
 
   public func fingerprint(for hostURL: URL) -> String? {
-    values[hostURL.absoluteString]
+    defaults.string(forKey: key(for: hostURL))
   }
 
   public func saveFingerprint(_ value: String, for hostURL: URL) {
-    values[hostURL.absoluteString] = value
+    defaults.set(value, forKey: key(for: hostURL))
+  }
+
+  public func clearFingerprint(for hostURL: URL) {
+    defaults.removeObject(forKey: key(for: hostURL))
+  }
+
+  private func key(for hostURL: URL) -> String {
+    prefix + hostURL.absoluteString
   }
 }

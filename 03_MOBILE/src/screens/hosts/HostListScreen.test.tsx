@@ -12,8 +12,15 @@ it('renders merged host row', () => {
     source: { saved: false, defaultConfigured: false, discovered: true },
   }
   const screen = render(
-    <HostListScreen items={[item]} onRefresh={() => {}} onOpen={() => {}} />,
+    <HostListScreen
+      items={[item]}
+      onRefresh={() => {}}
+      onOpen={() => {}}
+      onOpenSettings={() => {}}
+      onRemove={() => {}}
+    />,
   )
   expect(screen.getByText('# 10.0.0.2:8443')).toBeTruthy()
   expect(screen.getByText('자동 감지')).toBeTruthy()
+  expect(screen.getByText('discovered · token cached')).toBeTruthy()
 })

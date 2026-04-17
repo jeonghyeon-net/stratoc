@@ -1,11 +1,23 @@
 package com.stratoc.mobile.terminal.tls
 
-class HostTrustStore {
-    private val values = mutableMapOf<String, String>()
+import java.util.prefs.Preferences
 
-    fun load(hostUrl: String): String? = values[hostUrl]
+class HostTrustStore(
+    private val preferences: Preferences = Preferences.userRoot().node("stratoc/mobile/host-trust"),
+) {
+    fun load(hostUrl: String): String? = preferences.get(hostUrl, null)
 
     fun save(hostUrl: String, fingerprint: String) {
-        values[hostUrl] = fingerprint
+        preferences.put(hostUrl, fingerprint)
+        preferences.flushSilently()
     }
+
+    fun clear(hostUrl: String) {
+        preferences.remove(hostUrl)
+        preferences.flushSilently()
+    }
+}
+
+private fun Preferences.flushSilently() {
+    runCatching { flush() }
 }

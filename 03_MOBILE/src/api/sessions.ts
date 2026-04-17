@@ -1,8 +1,23 @@
 import { SessionItem } from '@/models/session'
 import { HttpClient } from './httpClient'
 
+type SessionPayload = {
+  name: string
+  title?: string
+  attached: number
+  windows: number
+  created_at: string
+}
+
 export async function listSessions(client: HttpClient, token: string) {
-  return client.get<SessionItem[]>('/api/sessions', token)
+  const payload = await client.get<SessionPayload[]>('/api/sessions', token)
+  return payload.map((item) => ({
+    name: item.name,
+    title: item.title,
+    attached: item.attached,
+    windows: item.windows,
+    createdAt: item.created_at,
+  })) satisfies SessionItem[]
 }
 
 export async function createSession(client: HttpClient, existing: SessionItem[], token: string) {
