@@ -2,6 +2,7 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 	"net/url"
 
@@ -28,6 +29,7 @@ func (client *Client) Dial(ctx context.Context, name string, headers http.Header
 		ReadBufferSize:    readBufferBytes,
 		WriteBufferSize:   readBufferBytes,
 		WriteBufferPool:   websocketBufferPool,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 	}
 	connection, response, err := dialer.DialContext(ctx, websocketURL.String(), headers)
 	if err == nil {

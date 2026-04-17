@@ -119,6 +119,11 @@ install_hooks() {
   (cd "$ROOT_DIR" && mise exec -- lefthook install)
 }
 
+restart_tmux_server() {
+  log "Restarting tmux server to apply config"
+  tmux kill-server >/dev/null 2>&1 || true
+}
+
 build_project() {
   log "Running tests"
   (cd "$ROOT_DIR" && mise exec -- make test)
@@ -134,6 +139,7 @@ main() {
   trust_and_install_tools
   install_hooks
   build_project
+  restart_tmux_server
   log "LAN discovery uses mDNS and requires HTTPS-enabled host certificates"
   log "Setup complete"
 }

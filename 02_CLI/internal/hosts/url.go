@@ -12,7 +12,7 @@ func normalizeURL(raw string) string {
 		return ""
 	}
 	if !strings.Contains(raw, "://") {
-		raw = "http://" + raw
+		raw = "https://" + raw
 	}
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Host == "" {

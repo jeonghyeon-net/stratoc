@@ -36,7 +36,7 @@ func Load(args []string) Config {
 		"tmux binary path",
 	)
 	_ = flags.Parse(args)
-	return config
+	return ensureTLSConfig(config)
 }
 
 func env(values map[string]string, key string, fallback string) string {

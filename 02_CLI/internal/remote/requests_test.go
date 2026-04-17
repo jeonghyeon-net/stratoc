@@ -9,7 +9,7 @@ import (
 
 func TestClientCreatesAndDeletesSessions(t *testing.T) {
 	authHeader := ""
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		authHeader = request.Header.Get("Authorization")
 		switch request.Method + " " + request.URL.Path {
 		case http.MethodGet + " /api/sessions":
