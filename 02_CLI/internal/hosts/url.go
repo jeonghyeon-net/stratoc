@@ -7,6 +7,10 @@ import (
 )
 
 func normalizeURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
 	if !strings.Contains(raw, "://") {
 		raw = "http://" + raw
 	}
@@ -25,5 +29,5 @@ func labelFromURL(raw string) string {
 	if err != nil || parsed.Host == "" {
 		return raw
 	}
-	return fmt.Sprintf("# %s", parsed.Hostname())
+	return fmt.Sprintf("# %s", parsed.Host)
 }

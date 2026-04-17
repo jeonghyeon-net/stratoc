@@ -27,9 +27,20 @@ func finalize(item Item, saved bool, value fileData, defaultToken string) Item {
 	item.URL = normalizeURL(item.URL)
 	item.Label = labelFromURL(item.URL)
 	item.Saved = saved || item.Saved
+	item.Status = hostStatus(item)
 	item.Token = tokenFor(item.URL, value, item.Token)
 	if item.Token == "" {
 		item.Token = defaultToken
 	}
 	return item
+}
+
+func hostStatus(item Item) string {
+	if item.Status != "" {
+		return item.Status
+	}
+	if item.Saved {
+		return "수동 추가"
+	}
+	return ""
 }

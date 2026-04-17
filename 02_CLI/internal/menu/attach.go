@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jeonghyeon-net/stratoc/02_CLI/internal/remote"
@@ -57,7 +58,14 @@ func (menu *Menu) stream(connection *websocket.Conn, mutex *sync.Mutex) error {
 	err := finish(connection, mutex, errors, reasons)
 	cancel()
 	interruptRead(menu.stdin)
-	<-stopped
+	waitInputStop(stopped)
 	resetRead(menu.stdin)
 	return err
+}
+
+func waitInputStop(stopped <-chan struct{}) {
+	select {
+	case <-stopped:
+	case <-time.After(100 * time.Millisecond):
+	}
 }

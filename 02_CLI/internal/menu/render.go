@@ -22,7 +22,7 @@ func (menu *Menu) renderServers(state state) {
 		if index == state.HostIndex {
 			prefix = selectedPrefix()
 		}
-		line(menu, prefix+headerText(host.Label))
+		line(menu, prefix+hostRow(host))
 	}
 	if state.HostError != "" {
 		line(menu, "")

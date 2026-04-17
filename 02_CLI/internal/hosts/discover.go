@@ -31,7 +31,10 @@ func discover(ctx context.Context, token string) ([]Item, error) {
 			}
 			for _, address := range entry.AddrIPv4 {
 				url := (&url.URL{Scheme: "http", Host: fmt.Sprintf("%s:%d", address.String(), entry.Port)}).String()
-				items = upsert(items, Item{Label: "# " + address.String(), Token: token, URL: url})
+				if !available(ctx, url) {
+					continue
+				}
+				items = upsert(items, Item{Label: "# " + address.String(), Token: token, URL: url, Status: "자동 감지"})
 			}
 		}
 	}

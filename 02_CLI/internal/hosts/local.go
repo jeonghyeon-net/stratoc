@@ -16,5 +16,5 @@ func (manager *Manager) defaultItem() (Item, bool) {
 	if url == "" {
 		return Item{}, false
 	}
-	return Item{URL: url}, true
+	return Item{URL: url, Status: "로컬"}, true
 }

@@ -12,26 +12,17 @@ type Config struct {
 }
 
 func Load(args []string) Config {
-	values := loadDotEnv()
 	flags := flag.NewFlagSet("terminal", flag.ExitOnError)
 	config := Config{}
-	flags.StringVar(&config.AuthToken, "auth-token", env(values, "TERMINAL_AUTH_TOKEN", env(values, "AUTHORIZATION_TOKEN", "")), "bearer token")
-	flags.StringVar(
-		&config.ServerURL,
-		"server-url",
-		env(values, "TERMINAL_SERVER_URL", ""),
-		"remote server url",
-	)
+	flags.StringVar(&config.AuthToken, "auth-token", env("TERMINAL_AUTH_TOKEN", ""), "bearer token")
+	flags.StringVar(&config.ServerURL, "server-url", env("TERMINAL_SERVER_URL", ""), "remote server url")
 	_ = flags.Parse(args)
 	return config
 }
 
-func env(values map[string]string, key string, fallback string) string {
+func env(key string, fallback string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value != "" {
-		return value
-	}
-	if value = strings.TrimSpace(values[key]); value != "" {
 		return value
 	}
 	return fallback
