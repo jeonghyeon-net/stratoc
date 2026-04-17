@@ -68,9 +68,9 @@ SERVER SOURCES
 
 FILES
 -----
-    ~/.config/stratoc-host/tls/host.crt
-    ~/.config/stratoc-host/tls/host.key
-    ~/.config/stratoc-cli/servers.json
+    ~/.config/stratoc/tls/host.crt
+    ~/.config/stratoc/tls/host.key
+    ~/.config/stratoc/servers.json
 
 ENVIRONMENT
 -----------

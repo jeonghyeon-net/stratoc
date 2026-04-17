@@ -43,4 +43,4 @@ SERVER SOURCES
 
 FILES
 -----
-    ~/.config/stratoc-cli/servers.json
+    ~/.config/stratoc/servers.json
