@@ -1,0 +1,332 @@
+# Stratoc 모바일 앱 설계
+
+**주의:** 이 저장소는 `.md` 파일을 금지하므로, 설계 문서는 마크다운 내용을 확장자 없는 파일로 저장한다.
+
+## 목표
+- `02_CLI` 최신 동작을 기준으로 모바일 앱 구조를 재설계한다.
+- 모바일 앱은 데스크톱 CLI 대체 수준을 목표로 한다.
+- 가로+외부 키보드, 세로+소프트 키보드 둘 다 1급 시나리오로 지원한다.
+- 서버/세션 관리 UI는 공용 셸로, 터미널 attach 코어는 플랫폼 네이티브로 분리한다.
+
+## 최신 CLI 재분석 요약
+근거 파일:
+- `02_CLI/internal/hosts/list.go`
+- `02_CLI/internal/hosts/discover.go`
+- `02_CLI/internal/remote/new.go`
+- `02_CLI/internal/menu/attach.go`
+- `02_CLI/internal/menu/resize.go`
+- `README`
+
+확정된 사실:
+1. CLI는 `.env`를 읽지 않는다. 설정 입력은 `--server-url`, `TERMINAL_SERVER_URL`, `--auth-token`, `TERMINAL_AUTH_TOKEN` 뿐이다.
+2. 기본 서버 자동 localhost fallback은 없다.
+3. 호스트 목록은 저장 서버 + 기본 서버 + mDNS 자동 감지 서버를 merge 한다.
+4. mDNS 자동 감지는 HTTPS 서비스만 허용한다. TXT에 `scheme=https`가 있어야 한다.
+5. 호스트 health 확인은 `/healthz`로 한다.
+6. 원격 연결은 HTTPS/WSS만 허용한다.
+7. TLS는 현재 CLI에서 self-signed를 허용한다(`InsecureSkipVerify: true`).
+8. attach websocket 프로토콜은 얇다.
+   - 바이너리 메시지: 터미널 바이트 스트림
+   - 텍스트 JSON 메시지: control message
+   - outbound control: `resize`
+   - inbound control: `disconnect`
+9. 초기 터미널 크기는 가능하면 헤더 `X-Terminal-Columns`, `X-Terminal-Rows`로 보낸다.
+10. 인증 실패 시 per-host token cache를 지우고 재인증한다.
+11. 세션 생성은 unnamed create를 먼저 시도하고, 서버가 `invalid session name: ""`를 반환하면 `session-0001` 형식으로 fallback 생성한다.
+
+## 아키텍처 결정
+### 채택안
+- **React Native bare shell + iOS/Android native attach module**
+
+### 이유
+- 서버 목록, 세션 목록, 설정 UI는 RN으로 공용화 가치가 높다.
+- terminal attach는 입력 품질, IME, 외부 키보드, resize, lifecycle 대응이 핵심이다.
+- 최신 CLI 프로토콜은 attach가 얇고 raw I/O 중심이어서 RN bridge에 바이트 스트림을 태우는 것보다 native ownership이 낫다.
+- mDNS, TLS trust, external keyboard, lifecycle은 네이티브 제어가 더 안전하다.
+
+## 저장소 구조
+현재 루트 구조는 유지하되 모바일 구현 단계에서 다음으로 전환한다.
+
+```text
+00_ARCHITECTURE/
+01_SERVER/
+02_CLI/
+03_MOBILE/
+```
+
+`03_MOBILE` 내부 구조:
+
+```text
+03_MOBILE/
+  package.json
+  tsconfig.json
+  babel.config.js
+  metro.config.js
+  app.json
+
+  src/
+    app/
+    screens/
+      hosts/
+      sessions/
+      settings/
+    api/
+    state/
+    bridge/
+      terminal/
+      discovery/
+      secure-storage/
+    models/
+    theme/
+
+  ios/
+    StratocMobile/
+    TerminalAttach/
+      Transport/
+      Input/
+      Resize/
+      TLS/
+      Discovery/
+
+  android/
+    app/src/main/java/.../mobile/
+      terminal/
+        transport/
+        input/
+        resize/
+        tls/
+        discovery/
+
+  shared/
+    contracts/
+```
+
+### 책임 분리
+- `src/`: RN shell. 서버/세션/설정/라우팅/상태관리
+- `ios/`, `android/`: native attach, discovery, TLS, keyboard, lifecycle
+- `shared/contracts/`: RN과 native가 공유하는 request/event 타입 정의
+
+## Host 모델
+모바일 Host 모델은 CLI보다 source metadata를 더 명시적으로 갖는다.
+
+```ts
+type HostSource = {
+  saved: boolean
+  defaultConfigured: boolean
+  discovered: boolean
+}
+
+type HostItem = {
+  id: string
+  label: string
+  url: string
+  status: string
+  tokenState: 'missing' | 'cached'
+  source: HostSource
+}
+```
+
+### merge 규칙
+- 같은 URL이면 하나의 HostItem으로 병합한다.
+- source flag는 덮어쓰지 않고 누적한다.
+- label 우선순위: saved label > default label > discovered label
+- status는 다음 우선순위를 따른다.
+  1. auth/problem 상태
+  2. saved/default/discovered 설명
+  3. 빈 문자열
+
+### 저장 규칙
+- 모바일은 CLI state file을 공유하지 않는다.
+- 모바일은 각 플랫폼 secure storage + local app storage를 사용한다.
+- per-host token은 URL 정규화 후 키로 저장한다.
+
+## TLS 정책
+최신 CLI는 self-signed를 허용한다. 모바일도 bootstrap 단계에서 이를 지원해야 한다.
+
+### 기본 정책
+- HTTPS/WSS만 허용
+- self-signed 인증서 허용 가능
+- 최초 연결 시 인증서 fingerprint를 저장하는 TOFU(trust on first use) 전략 채택
+- fingerprint 변경 시 경고 후 재승인 요구
+
+### 이유
+- 현재 host는 자체 서명 인증서를 자동 생성할 수 있다.
+- 모바일에서 일반 PKI만 강제하면 LAN discovery 이후 연결이 대부분 실패한다.
+
+### 플랫폼 책임
+- iOS: URLSession / WebSocket / trust delegate로 fingerprint 검증
+- Android: OkHttp / WebSocket listener + custom trust manager로 fingerprint 검증
+
+## 세션 관리 설계
+### 목록
+- RN shell이 `GET /api/sessions` 호출
+- auth 실패 시 token purge + reauth flow 시작
+- 세션 row는 CLI와 같은 정보 사용
+  - `title`
+  - `name`
+  - `attached`
+  - `created_at`
+
+### 생성
+1. `POST /api/sessions` with empty name
+2. 서버가 invalid empty name 반환 시 fallback 이름 계산
+3. `session-0001` 형식으로 재시도
+4. 생성 후 목록 refresh
+5. 생성된 세션 자동 선택
+
+### 삭제
+- 현재 선택 세션에 대해 `DELETE /api/sessions/{name}`
+- 성공 후 목록 refresh
+
+## Attach 경계
+### RN → Native
+RN은 attach 시작 요청만 보낸다.
+
+```ts
+type OpenTerminalSessionRequest = {
+  hostUrl: string
+  authToken: string
+  sessionName: string
+  hostLabel?: string
+  theme: 'system' | 'dark' | 'light'
+  fontScale: number
+}
+```
+
+### Native → RN
+native는 상태 이벤트만 보낸다.
+
+```ts
+type TerminalSessionEvent =
+  | { type: 'opened'; sessionName: string }
+  | { type: 'closed'; reason: 'user' | 'remote' | 'error' }
+  | { type: 'disconnected'; retrying: boolean; message?: string }
+  | { type: 'auth-error' }
+  | { type: 'session-not-found' }
+  | { type: 'certificate-changed'; hostUrl: string }
+```
+
+### 금지 사항
+- RN에서 websocket byte stream 처리 금지
+- RN에서 resize 계산 금지
+- RN에서 key event mapping 금지
+- RN에서 terminal buffer/render state 관리 금지
+
+## Native attach lifecycle
+### open
+1. RN이 `openTerminalSession()` 호출
+2. native screen/activity 진입
+3. TLS trust 확인
+4. WSS attach 연결 시작
+5. 초기 cols/rows 측정
+6. 가능하면 header로 size 전송, 실패 시 연결 직후 resize control 전송
+7. input/output loop 시작
+
+### steady state
+- outbound binary: key bytes
+- inbound binary: terminal output bytes
+- outbound text JSON: `resize`
+- inbound text JSON: `disconnect`
+- ping/pong keepalive 유지
+
+### background/foreground
+- app background 진입 시 socket suspend/close 정책 적용
+- foreground 복귀 시 reconnect policy 수행
+- reconnect 실패 시 attach screen에서 원인 표시 후 RN shell 복귀 가능
+
+### resize
+다음 이벤트에서 cols/rows 재계산:
+- orientation change
+- split view / multi-window
+- keyboard show/hide
+- font scale change
+- safe area change
+- external keyboard attach/detach
+
+## 입력/키보드 설계
+### 1급 지원 시나리오
+- iPhone portrait soft keyboard
+- iPhone landscape soft keyboard
+- iPad split view + hardware keyboard
+- Android phone/tablet + Gboard IME
+- Android hardware keyboard
+
+### 필수 기능
+- `Ctrl`, `Esc`, `Tab`, arrows, `PgUp`, `PgDn`
+- 복사/붙여넣기
+- selection
+- Korean IME composition 안정성
+- accessory row 제공
+
+### 플랫폼 구현 방향
+- iOS: SwiftUI wrapper + UIKit input core
+- Android: Compose wrapper + custom View / input core
+
+## 에러 처리
+### shell 영역
+- host discovery 실패
+- list/create/delete REST 실패
+- token missing
+- certificate changed
+
+### attach 영역
+- auth error
+- session not found
+- server disconnect reason
+- network drop
+- resize send failure
+- input pipe failure
+
+### UX 원칙
+- shell 문제는 RN screen에서 처리
+- attach 문제는 native attach screen에서 처리
+- takeover / remote disconnect / reconnecting 상태를 명시 배너로 보여준다
+
+## 테스트 전략
+### API / state
+- host URL normalization
+- host source merge
+- fallback session naming
+- auth purge/retry flow
+
+### iOS manual matrix
+- portrait soft keyboard
+- landscape soft keyboard
+- iPad split view
+- iPad hardware keyboard
+- lock/unlock reconnect
+- fingerprint change prompt
+
+### Android manual matrix
+- phone portrait/landscape
+- tablet multi-window
+- hardware keyboard
+- IME composition
+- reconnect after process pause
+- fingerprint change prompt
+
+### attach protocol
+- initial size header
+- fallback resize message
+- binary output render
+- binary input send
+- disconnect control handling
+- keepalive
+
+## 단계별 구현 순서
+1. 루트 구조를 `03_MOBILE` 기준으로 정리
+2. RN bare shell bootstrap
+3. host/session/settings shell 구축
+4. native discovery + secure storage bridge
+5. native attach module stub
+6. iOS attach core
+7. Android attach core
+8. TLS fingerprint trust
+9. reconnect/lifecycle hardening
+10. replacement-grade keyboard polish
+
+## 범위 밖
+- watchOS / visionOS / macOS 전용 클라이언트
+- BLE/NFC 등 모바일 기기 특수 기능
+- desktop/web 클라이언트 통합 리팩터링
+- server API 대규모 재설계

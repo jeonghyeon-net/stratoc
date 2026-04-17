@@ -1,0 +1,701 @@
+# Stratoc 모바일 앱 구현 계획
+
+> **에이전트 워커용:** REQUIRED SUB-SKILL: 이 계획은 `- [ ]` 체크박스 문법으로 진행 상황을 추적하므로, 작업별로 구현할 때는 subagent-driven-development(권장) 또는 executing-plans를 사용한다.
+
+**목표:** 최신 `02_CLI` 동작을 기준으로 `03_MOBILE` 구조를 만들고, RN shell + native attach module 아키텍처로 모바일 앱 기반을 구축한다.
+
+**아키텍처:** 루트는 `03_MOBILE` 하나로 통합하고, 공용 UI/상태/API는 React Native bare에서 담당한다. 터미널 attach, mDNS discovery, TLS trust, keyboard/input, lifecycle/reconnect는 iOS/Android 네이티브 계층이 소유한다.
+
+**기술 스택:** React Native bare, TypeScript, Swift/SwiftUI/UIKit, Kotlin/Compose, platform secure storage, platform websocket/TLS stack
+
+---
+
+**주의:** 이 저장소는 `.md` 파일을 금지하므로, 계획 파일도 마크다운 내용을 가진 확장자 없는 파일로 저장한다.
+
+### 작업 1: 루트 구조를 `03_MOBILE` 기준으로 재편
+
+**파일:**
+- 생성: `03_MOBILE/package.json`
+- 생성: `03_MOBILE/tsconfig.json`
+- 생성: `03_MOBILE/app.json`
+- 수정: `README`
+- 수정: `00_ARCHITECTURE/tests/03_repository_root_entries_must_match_current_expected_files_and_directories_test.go`
+- 테스트: `00_ARCHITECTURE/tests/03_repository_root_entries_must_match_current_expected_files_and_directories_test.go`
+
+- [ ] **1단계: 실패하는 아키텍처 테스트 기준을 먼저 갱신한다**
+
+```go
+expectedEntries := []string{
+    ".claude:dir",
+    ".env:file",
+    ".gitignore:file",
+    ".mise.toml:file",
+    "00_ARCHITECTURE:dir",
+    "01_SERVER:dir",
+    "02_CLI:dir",
+    "03_MOBILE:dir",
+    "README:file",
+    "lefthook.yml:file",
+    "makefile:file",
+    "setup.sh:file",
+}
+```
+
+- [ ] **2단계: 테스트를 실행해 실제로 실패하는지 확인한다**
+
+Run:
+```bash
+cd 00_ARCHITECTURE && go test ./tests -run TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories -v
+```
+Expected: FAIL with `03_ANDROID`, `04_IOS` mismatch or missing `03_MOBILE`.
+
+- [ ] **3단계: 최소 루트 구조와 모바일 workspace 파일을 만든다**
+
+```json
+{
+  "name": "stratoc-mobile",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "start": "react-native start",
+    "ios": "react-native run-ios",
+    "android": "react-native run-android",
+    "typecheck": "tsc --noEmit"
+  }
+}
+```
+
+```json
+{
+  "name": "StratocMobile",
+  "displayName": "StratocMobile"
+}
+```
+
+```json
+{
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "jsx": "react-jsx",
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  },
+  "include": ["src", "index.ts"]
+}
+```
+
+- [ ] **4단계: README의 레이아웃 설명을 최신 구조로 맞춘다**
+
+```text
+Current layout
+- 01_SERVER: Go host service with Uber Fx.
+- 02_CLI: Go terminal client with Uber Fx.
+- 03_MOBILE: React Native shell with iOS/Android native terminal attach modules.
+```
+
+- [ ] **5단계: 루트 구조 테스트를 다시 실행하고 커밋한다**
+
+Run:
+```bash
+cd 00_ARCHITECTURE && go test ./tests -run TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories -v
+git add README 00_ARCHITECTURE/tests/03_repository_root_entries_must_match_current_expected_files_and_directories_test.go 03_MOBILE
+git commit -m "chore: replace reserved mobile dirs with 03_MOBILE workspace"
+```
+Expected: PASS
+
+### 작업 2: RN shell 최소 부트스트랩과 공용 타입을 추가
+
+**파일:**
+- 생성: `03_MOBILE/index.ts`
+- 생성: `03_MOBILE/src/app/App.tsx`
+- 생성: `03_MOBILE/src/models/host.ts`
+- 생성: `03_MOBILE/src/models/session.ts`
+- 생성: `03_MOBILE/src/bridge/terminal/types.ts`
+- 생성: `03_MOBILE/src/theme/theme.ts`
+- 테스트: `03_MOBILE/src/models/host.test.ts`
+
+- [ ] **1단계: host/session/bridge 타입 테스트를 작성한다**
+
+```ts
+import { normalizeHostUrl, mergeHostSources } from './host'
+
+test('normalizeHostUrl adds https', () => {
+  expect(normalizeHostUrl('10.0.0.2:8443')).toBe('https://10.0.0.2:8443')
+})
+
+test('mergeHostSources accumulates source flags', () => {
+  expect(mergeHostSources({ saved: true, defaultConfigured: false, discovered: false }, { saved: false, defaultConfigured: true, discovered: true }))
+    .toEqual({ saved: true, defaultConfigured: true, discovered: true })
+})
+```
+
+- [ ] **2단계: 테스트를 실행해 실제로 실패하는지 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/models/host.test.ts
+```
+Expected: FAIL with module not found.
+
+- [ ] **3단계: 최소 앱 엔트리와 공용 타입을 작성한다**
+
+```ts
+// 03_MOBILE/index.ts
+import { AppRegistry } from 'react-native'
+import { name as appName } from '../app.json'
+import { App } from './src/app/App'
+
+AppRegistry.registerComponent(appName, () => App)
+```
+
+```tsx
+// 03_MOBILE/src/app/App.tsx
+import React from 'react'
+import { SafeAreaView, Text } from 'react-native'
+
+export function App() {
+  return (
+    <SafeAreaView>
+      <Text>Stratoc Mobile</Text>
+    </SafeAreaView>
+  )
+}
+```
+
+```ts
+// 03_MOBILE/src/models/host.ts
+export type HostSource = { saved: boolean; defaultConfigured: boolean; discovered: boolean }
+export type HostItem = { id: string; label: string; url: string; status: string; tokenState: 'missing' | 'cached'; source: HostSource }
+export function normalizeHostUrl(raw: string) {
+  return raw.includes('://') ? raw.trim() : `https://${raw.trim()}`
+}
+export function mergeHostSources(a: HostSource, b: HostSource): HostSource {
+  return { saved: a.saved || b.saved, defaultConfigured: a.defaultConfigured || b.defaultConfigured, discovered: a.discovered || b.discovered }
+}
+```
+
+```ts
+// 03_MOBILE/src/models/session.ts
+export type SessionItem = { name: string; title?: string; attached: number; windows: number; createdAt: string }
+```
+
+```ts
+// 03_MOBILE/src/bridge/terminal/types.ts
+export type OpenTerminalSessionRequest = {
+  hostUrl: string
+  authToken: string
+  sessionName: string
+  hostLabel?: string
+  theme: 'system' | 'dark' | 'light'
+  fontScale: number
+}
+
+export type TerminalSessionEvent =
+  | { type: 'opened'; sessionName: string }
+  | { type: 'closed'; reason: 'user' | 'remote' | 'error' }
+  | { type: 'disconnected'; retrying: boolean; message?: string }
+  | { type: 'auth-error' }
+  | { type: 'session-not-found' }
+  | { type: 'certificate-changed'; hostUrl: string }
+```
+
+- [ ] **4단계: 타입 테스트와 타입체크를 실행한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/models/host.test.ts && npm run typecheck
+```
+Expected: PASS
+
+- [ ] **5단계: 공용 타입 작업을 커밋한다**
+
+```bash
+git add 03_MOBILE/index.ts 03_MOBILE/src/app/App.tsx 03_MOBILE/src/models 03_MOBILE/src/bridge/terminal/types.ts 03_MOBILE/src/theme/theme.ts
+git commit -m "feat: bootstrap mobile shell types and entrypoint"
+```
+
+### 작업 3: 최신 CLI와 맞는 host/session API layer를 구현
+
+**파일:**
+- 생성: `03_MOBILE/src/api/httpClient.ts`
+- 생성: `03_MOBILE/src/api/hosts.ts`
+- 생성: `03_MOBILE/src/api/sessions.ts`
+- 생성: `03_MOBILE/src/state/hosts/hostStore.ts`
+- 생성: `03_MOBILE/src/state/sessions/sessionStore.ts`
+- 테스트: `03_MOBILE/src/api/hosts.test.ts`
+- 테스트: `03_MOBILE/src/api/sessions.test.ts`
+
+- [ ] **1단계: host merge와 session create fallback 테스트를 작성한다**
+
+```ts
+import { createSession } from './sessions'
+
+it('retries create with fallback name on invalid empty name', async () => {
+  const calls: Array<Record<string, unknown>> = []
+  const client = {
+    async post(path: string, body: Record<string, unknown>) {
+      calls.push(body)
+      if (calls.length === 1) {
+        const error = new Error('invalid session name: ""')
+        throw error
+      }
+      return { created: 'session-0001' }
+    },
+  }
+  await expect(createSession(client as never, [], '')).resolves.toBe('session-0001')
+  expect(calls).toEqual([{ name: '' }, { name: 'session-0001' }])
+})
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/api/hosts.test.ts src/api/sessions.test.ts
+```
+Expected: FAIL with missing modules.
+
+- [ ] **3단계: CLI 규칙을 복제한 최소 API/client/store를 작성한다**
+
+```ts
+// 03_MOBILE/src/api/httpClient.ts
+export type HttpClient = {
+  get<T>(path: string, token?: string): Promise<T>
+  post<T>(path: string, body: unknown, token?: string): Promise<T>
+  delete(path: string, token?: string): Promise<void>
+}
+```
+
+```ts
+// 03_MOBILE/src/api/sessions.ts
+import { SessionItem } from '@/models/session'
+
+export async function listSessions(client: HttpClient, token: string) {
+  return client.get<SessionItem[]>('/api/sessions', token)
+}
+
+export async function createSession(client: HttpClient, existing: SessionItem[], token: string) {
+  try {
+    const response = await client.post<{ created: string }>('/api/sessions', { name: '' }, token)
+    return response.created
+  } catch (error) {
+    if ((error as Error).message !== 'invalid session name: ""') throw error
+    const fallback = nextSessionName(existing)
+    const response = await client.post<{ created: string }>('/api/sessions', { name: fallback }, token)
+    return response.created
+  }
+}
+```
+
+```ts
+// 03_MOBILE/src/state/hosts/hostStore.ts
+export type HostStore = {
+  items: HostItem[]
+  setItems(items: HostItem[]): void
+  clearToken(url: string): void
+}
+```
+
+- [ ] **4단계: host/session 테스트를 실행해 통과를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/api/hosts.test.ts src/api/sessions.test.ts && npm run typecheck
+```
+Expected: PASS
+
+- [ ] **5단계: API/store 작업을 커밋한다**
+
+```bash
+git add 03_MOBILE/src/api 03_MOBILE/src/state
+git commit -m "feat: add mobile host and session api layer"
+```
+
+### 작업 4: RN shell 화면과 native discovery/storage bridge를 연결
+
+**파일:**
+- 생성: `03_MOBILE/src/screens/hosts/HostListScreen.tsx`
+- 생성: `03_MOBILE/src/screens/sessions/SessionListScreen.tsx`
+- 생성: `03_MOBILE/src/screens/settings/SettingsScreen.tsx`
+- 생성: `03_MOBILE/src/bridge/discovery/index.ts`
+- 생성: `03_MOBILE/src/bridge/secure-storage/index.ts`
+- 생성: `03_MOBILE/src/app/navigation.tsx`
+- 테스트: `03_MOBILE/src/screens/hosts/HostListScreen.test.tsx`
+
+- [ ] **1단계: host list UI가 source/status를 표시하는 테스트를 작성한다**
+
+```tsx
+it('renders merged host row', () => {
+  const item = {
+    id: 'https://10.0.0.2:8443',
+    label: '# 10.0.0.2:8443',
+    url: 'https://10.0.0.2:8443',
+    status: '자동 감지',
+    tokenState: 'cached',
+    source: { saved: false, defaultConfigured: false, discovered: true },
+  }
+  const screen = render(<HostListScreen items={[item]} onRefresh={() => {}} onOpen={() => {}} />)
+  expect(screen.getByText('# 10.0.0.2:8443')).toBeTruthy()
+  expect(screen.getByText('자동 감지')).toBeTruthy()
+})
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/screens/hosts/HostListScreen.test.tsx
+```
+Expected: FAIL with missing component.
+
+- [ ] **3단계: 최소 navigation/screen/bridge 구현을 작성한다**
+
+```tsx
+// 03_MOBILE/src/screens/hosts/HostListScreen.tsx
+import React from 'react'
+import { FlatList, Pressable, Text, View } from 'react-native'
+import { HostItem } from '@/models/host'
+
+export function HostListScreen({ items, onRefresh, onOpen }: { items: HostItem[]; onRefresh: () => void; onOpen: (item: HostItem) => void }) {
+  return (
+    <View>
+      <Pressable onPress={onRefresh}><Text>새로고침</Text></Pressable>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <Pressable onPress={() => onOpen(item)}>
+            <Text>{item.label}</Text>
+            <Text>{item.status}</Text>
+          </Pressable>
+        )}
+      />
+    </View>
+  )
+}
+```
+
+```ts
+// 03_MOBILE/src/bridge/discovery/index.ts
+export type DiscoveredHost = { url: string; label: string }
+export async function discoverHosts(): Promise<DiscoveredHost[]> {
+  return []
+}
+```
+
+```ts
+// 03_MOBILE/src/bridge/secure-storage/index.ts
+export async function loadHostToken(_url: string): Promise<string | null> { return null }
+export async function saveHostToken(_url: string, _token: string): Promise<void> {}
+export async function clearHostToken(_url: string): Promise<void> {}
+```
+
+- [ ] **4단계: 화면 테스트와 타입체크를 실행한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/screens/hosts/HostListScreen.test.tsx && npm run typecheck
+```
+Expected: PASS
+
+- [ ] **5단계: shell 화면과 bridge 골격을 커밋한다**
+
+```bash
+git add 03_MOBILE/src/screens 03_MOBILE/src/bridge/discovery 03_MOBILE/src/bridge/secure-storage 03_MOBILE/src/app/navigation.tsx
+git commit -m "feat: add mobile shell screens and native bridge stubs"
+```
+
+### 작업 5: 네이티브 terminal attach bridge 골격을 구현
+
+**파일:**
+- 생성: `03_MOBILE/src/bridge/terminal/index.ts`
+- 생성: `03_MOBILE/ios/TerminalAttach/TerminalModule.swift`
+- 생성: `03_MOBILE/ios/TerminalAttach/TerminalEventEmitter.swift`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/TerminalModule.kt`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/TerminalEventEmitter.kt`
+- 테스트: `03_MOBILE/src/bridge/terminal/index.test.ts`
+
+- [ ] **1단계: JS bridge contract 테스트를 작성한다**
+
+```ts
+import { openTerminalSession } from './index'
+
+it('forwards request to native module', async () => {
+  const request = { hostUrl: 'https://10.0.0.2:8443', authToken: 'secret', sessionName: 'session-0001', theme: 'dark', fontScale: 1 }
+  await expect(openTerminalSession(request)).resolves.toBeUndefined()
+})
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/bridge/terminal/index.test.ts
+```
+Expected: FAIL with missing native bridge.
+
+- [ ] **3단계: JS/native stub을 추가한다**
+
+```ts
+// 03_MOBILE/src/bridge/terminal/index.ts
+import { NativeEventEmitter, NativeModules } from 'react-native'
+import { OpenTerminalSessionRequest } from './types'
+
+const { TerminalModule } = NativeModules
+const emitter = new NativeEventEmitter(TerminalModule)
+
+export function openTerminalSession(request: OpenTerminalSessionRequest): Promise<void> {
+  return TerminalModule.openTerminalSession(request)
+}
+
+export function subscribeTerminalEvents(listener: (event: unknown) => void) {
+  return emitter.addListener('terminalEvent', listener)
+}
+```
+
+```swift
+@objc(TerminalModule)
+final class TerminalModule: NSObject {
+  @objc func openTerminalSession(_ request: NSDictionary, resolver: RCTPromiseResolveBlock, rejecter: RCTPromiseRejectBlock) {
+    resolver(nil)
+  }
+}
+```
+
+```kotlin
+class TerminalModule(private val reactContext: ReactApplicationContext): ReactContextBaseJavaModule(reactContext) {
+  override fun getName() = "TerminalModule"
+  @ReactMethod
+  fun openTerminalSession(request: ReadableMap, promise: Promise) {
+    promise.resolve(null)
+  }
+}
+```
+
+- [ ] **4단계: bridge 테스트와 platform compile check를 실행한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/bridge/terminal/index.test.ts && npm run typecheck
+```
+Expected: PASS
+
+- [ ] **5단계: native attach bridge 골격을 커밋한다**
+
+```bash
+git add 03_MOBILE/src/bridge/terminal 03_MOBILE/ios/TerminalAttach 03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal
+git commit -m "feat: add native terminal bridge skeleton"
+```
+
+### 작업 6: iOS attach core를 최신 CLI 프로토콜과 맞춰 구현
+
+**파일:**
+- 생성: `03_MOBILE/ios/TerminalAttach/Transport/TerminalSessionClient.swift`
+- 생성: `03_MOBILE/ios/TerminalAttach/Input/TerminalInputMapper.swift`
+- 생성: `03_MOBILE/ios/TerminalAttach/Resize/TerminalResizeCoordinator.swift`
+- 생성: `03_MOBILE/ios/TerminalAttach/TLS/HostTrustStore.swift`
+- 생성: `03_MOBILE/ios/TerminalAttach/TerminalViewController.swift`
+- 테스트: `03_MOBILE/ios/TerminalAttachTests/TerminalResizeCoordinatorTests.swift`
+
+- [ ] **1단계: resize/control 프로토콜 테스트를 작성한다**
+
+```swift
+func testResizePayloadUsesCliControlShape() throws {
+  let data = try JSONEncoder().encode(TerminalControlMessage(type: "resize", reason: nil, columns: 120, rows: 40))
+  XCTAssertEqual(String(data: data, encoding: .utf8), #"{"type":"resize","columns":120,"rows":40}"#)
+}
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE/ios && xcodebuild test -scheme StratocMobile -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+Expected: FAIL with missing types.
+
+- [ ] **3단계: CLI와 맞는 최소 iOS transport/input/resize/TLS 구현을 작성한다**
+
+```swift
+struct TerminalControlMessage: Codable {
+  let type: String
+  let reason: String?
+  let columns: UInt16?
+  let rows: UInt16?
+}
+
+final class TerminalSessionClient {
+  func connect(hostURL: URL, token: String, sessionName: String, columns: Int, rows: Int) {}
+  func sendInput(_ data: Data) {}
+  func sendResize(columns: Int, rows: Int) {}
+}
+```
+
+```swift
+final class HostTrustStore {
+  func fingerprint(for hostURL: URL) -> String? { nil }
+  func saveFingerprint(_ value: String, for hostURL: URL) {}
+}
+```
+
+- [ ] **4단계: iOS 테스트를 실행해 통과를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE/ios && xcodebuild test -scheme StratocMobile -destination 'platform=iOS Simulator,name=iPhone 16'
+```
+Expected: PASS
+
+- [ ] **5단계: iOS attach core를 커밋한다**
+
+```bash
+git add 03_MOBILE/ios/TerminalAttach 03_MOBILE/ios/TerminalAttachTests
+git commit -m "feat: add ios native terminal attach core"
+```
+
+### 작업 7: Android attach core를 최신 CLI 프로토콜과 맞춰 구현
+
+**파일:**
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/transport/TerminalSessionClient.kt`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/input/TerminalInputMapper.kt`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/resize/TerminalResizeCoordinator.kt`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/tls/HostTrustStore.kt`
+- 생성: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/TerminalActivity.kt`
+- 테스트: `03_MOBILE/android/app/src/test/java/com/stratoc/mobile/terminal/resize/TerminalResizeCoordinatorTest.kt`
+
+- [ ] **1단계: Android resize/control 테스트를 작성한다**
+
+```kotlin
+@Test
+fun resizeMessageMatchesCliShape() {
+    val message = TerminalControlMessage(type = "resize", reason = null, columns = 120, rows = 40)
+    assertEquals("resize", message.type)
+    assertEquals(120, message.columns)
+    assertEquals(40, message.rows)
+}
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE/android && ./gradlew testDebugUnitTest
+```
+Expected: FAIL with unresolved references.
+
+- [ ] **3단계: Android transport/input/resize/TLS 최소 구현을 작성한다**
+
+```kotlin
+data class TerminalControlMessage(
+    val type: String,
+    val reason: String? = null,
+    val columns: Int? = null,
+    val rows: Int? = null,
+)
+
+class TerminalSessionClient {
+    fun connect(hostUrl: String, token: String, sessionName: String, columns: Int, rows: Int) {}
+    fun sendInput(bytes: ByteArray) {}
+    fun sendResize(columns: Int, rows: Int) {}
+}
+```
+
+```kotlin
+class HostTrustStore(private val context: Context) {
+    fun load(hostUrl: String): String? = null
+    fun save(hostUrl: String, fingerprint: String) {}
+}
+```
+
+- [ ] **4단계: Android 테스트를 실행해 통과를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE/android && ./gradlew testDebugUnitTest
+```
+Expected: PASS
+
+- [ ] **5단계: Android attach core를 커밋한다**
+
+```bash
+git add 03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal 03_MOBILE/android/app/src/test/java/com/stratoc/mobile/terminal
+git commit -m "feat: add android native terminal attach core"
+```
+
+### 작업 8: lifecycle/reconnect/TLS 경고와 최종 검증을 추가
+
+**파일:**
+- 수정: `03_MOBILE/src/bridge/terminal/types.ts`
+- 수정: `03_MOBILE/ios/TerminalAttach/TerminalViewController.swift`
+- 수정: `03_MOBILE/android/app/src/main/java/com/stratoc/mobile/terminal/TerminalActivity.kt`
+- 생성: `03_MOBILE/shared/contracts/errors.ts`
+- 테스트: `03_MOBILE/src/bridge/terminal/events.test.ts`
+- 테스트: `03_MOBILE/ios/TerminalAttachTests/HostTrustStoreTests.swift`
+- 테스트: `03_MOBILE/android/app/src/test/java/com/stratoc/mobile/terminal/tls/HostTrustStoreTest.kt`
+
+- [ ] **1단계: reconnect/certificate-changed 이벤트 테스트를 작성한다**
+
+```ts
+it('supports certificate changed event', () => {
+  const event: TerminalSessionEvent = { type: 'certificate-changed', hostUrl: 'https://10.0.0.2:8443' }
+  expect(event.type).toBe('certificate-changed')
+})
+```
+
+- [ ] **2단계: 테스트를 실행해 실패를 확인한다**
+
+Run:
+```bash
+cd 03_MOBILE && npm test -- --runInBand src/bridge/terminal/events.test.ts
+```
+Expected: FAIL with missing coverage.
+
+- [ ] **3단계: lifecycle/reconnect/TLS 경고 최소 구현을 추가한다**
+
+```ts
+export type TerminalSessionEvent =
+  | { type: 'opened'; sessionName: string }
+  | { type: 'closed'; reason: 'user' | 'remote' | 'error' }
+  | { type: 'disconnected'; retrying: boolean; message?: string }
+  | { type: 'auth-error' }
+  | { type: 'session-not-found' }
+  | { type: 'certificate-changed'; hostUrl: string }
+```
+
+```swift
+func emitCertificateChanged(hostURL: URL) {
+  emitter.send(name: "terminalEvent", body: ["type": "certificate-changed", "hostUrl": hostURL.absoluteString])
+}
+```
+
+```kotlin
+fun emitCertificateChanged(hostUrl: String) {
+    emitter.sendEvent("terminalEvent", Arguments.createMap().apply {
+        putString("type", "certificate-changed")
+        putString("hostUrl", hostUrl)
+    })
+}
+```
+
+- [ ] **4단계: 전체 검증을 실행한다**
+
+Run:
+```bash
+cd 02_CLI && go test ./...
+cd ../00_ARCHITECTURE && go test ./...
+cd ../03_MOBILE && npm run typecheck && npm test -- --runInBand
+cd ios && xcodebuild test -scheme StratocMobile -destination 'platform=iOS Simulator,name=iPhone 16'
+cd ../android && ./gradlew testDebugUnitTest
+```
+Expected: PASS
+
+- [ ] **5단계: 최종 하드닝 작업을 커밋한다**
+
+```bash
+git add 03_MOBILE/src/bridge/terminal/types.ts 03_MOBILE/shared/contracts/errors.ts 03_MOBILE/ios 03_MOBILE/android
+git commit -m "feat: harden mobile terminal lifecycle and tls events"
+```
