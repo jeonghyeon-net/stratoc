@@ -10,4 +10,12 @@ public final class TerminalViewController {
   public func emitCertificateChanged(hostURL: URL) {
     emitter.send(name: "terminalEvent", body: ["type": "certificate-changed", "hostUrl": hostURL.absoluteString])
   }
+
+  public func emitDisconnected(retrying: Bool, message: String?) {
+    emitter.send(name: "terminalEvent", body: ["type": "disconnected", "retrying": retrying, "message": message as Any])
+  }
+
+  public func lastEventBody() -> [String: Any]? {
+    emitter.lastBody
+  }
 }
