@@ -19,6 +19,8 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 
 	expectedEntries := []string{
 		".claude:dir",
+		".env:file",
+		".gitignore:file",
 		".mise.toml:file",
 		"00_ARCHITECTURE:dir",
 		"01_SERVER:dir",
@@ -28,6 +30,7 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 		"README:file",
 		"lefthook.yml:file",
 		"makefile:file",
+		"setup.sh:file",
 	}
 
 	var actualEntries []string

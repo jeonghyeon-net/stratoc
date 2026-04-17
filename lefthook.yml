@@ -1,11 +1,14 @@
 pre-commit:
   commands:
-    architecture-tests:
+    repository-tests:
       run: make test
       always_run: true
 
 pre-push:
   commands:
-    architecture-tests:
+    repository-tests:
       run: make test
+      always_run: true
+    repository-build:
+      run: make build
       always_run: true

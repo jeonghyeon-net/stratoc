@@ -1,0 +1,51 @@
+terminal share
+
+Goal
+- Share tmux-backed terminal sessions from main computer to other devices.
+- Sessions survive client disconnects.
+- New connection can take over session. Old connection gets disconnected.
+
+Current layout
+- 01_SERVER: Go host service with Uber Fx.
+- 02_CLI: Go terminal client with Uber Fx.
+- 03_ANDROID: reserved.
+- 04_IOS: reserved.
+
+Host
+- Binary: `host`
+- Requires `tmux` installed on host machine.
+- API:
+  - `GET /healthz`
+  - `GET /api/sessions`
+  - `POST /api/sessions`
+  - `DELETE /api/sessions/{name}`
+  - `GET /api/sessions/{name}/attach` websocket
+- Env:
+  - `AUTHORIZATION_TOKEN`
+  - `HOST_ADDRESS`
+  - `HOST_AUTH_TOKEN`
+  - `HOST_DEFAULT_SHELL_PATH`
+  - `HOST_TMUX_BINARY_PATH`
+- If `AUTHORIZATION_TOKEN` is empty, host generates temporary token and prints it on startup.
+
+Terminal
+- Binary: `terminal`
+- Auto-discovers hosts on local network with mDNS.
+- Also includes saved hosts and default `http://127.0.0.1:8080`.
+- Env:
+  - `AUTHORIZATION_TOKEN`
+  - `TERMINAL_SERVER_URL`
+  - `TERMINAL_AUTH_TOKEN`
+
+Setup
+- `./setup.sh`
+- Installs Homebrew, tmux, mise, project tools, lefthook, tests, builds.
+- Updates `~/.tmux.conf` with extended-keys settings for tmux.
+- Restarts tmux server so new settings apply immediately.
+
+Run tests
+- `make test`
+
+Build
+- `cd 01_SERVER && go build ./cmd/host`
+- `cd 02_CLI && go build ./cmd/terminal`
