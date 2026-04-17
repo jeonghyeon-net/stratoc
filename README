@@ -54,6 +54,7 @@ terminal 은 서버 목록을 먼저 보여 준다.
 수동 추가 시 토큰 입력은 필수다.
 자동 감지는 LAN 에서 mDNS 와 HTTPS 를 함께 쓴다.
 클라이언트는 .env 를 읽지 않는다.
+서버도 .env 를 쓰지 않는다.
 
 TOKEN SOURCES
 -------------
@@ -68,6 +69,7 @@ SERVER SOURCES
 
 FILES
 -----
+    ~/.config/stratoc/auth_token
     ~/.config/stratoc/tls/host.crt
     ~/.config/stratoc/tls/host.key
     ~/.config/stratoc/servers.json
@@ -89,3 +91,8 @@ BUILD
 TEST
 ----
     make test
+
+NOTES
+-----
+host 는 시작할 때 현재 인증 토큰을 표준 출력으로 한 줄 찍는다.
+복사해서 terminal 쪽 입력에 그대로 쓸 수 있다.

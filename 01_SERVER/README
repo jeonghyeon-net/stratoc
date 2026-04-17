@@ -27,6 +27,7 @@ NETWORK
 서버는 항상 HTTPS 와 WSS 만 쓴다.
 평문 HTTP 와 WS 는 허용하지 않는다.
 TLS 인증서와 키를 주지 않으면 self-signed 쌍을 스스로 만든다.
+인증 토큰은 .env 대신 host 전용 파일에 둔다.
 기본 포트는 62589 다.
 포트는 바뀌지 않는다.
 HOST_ADDRESS 와 --address 는 바인드할 호스트만 정한다.
@@ -51,5 +52,10 @@ ENVIRONMENT
 
 FILES
 -----
+    ~/.config/stratoc/auth_token
     ~/.config/stratoc/tls/host.crt
     ~/.config/stratoc/tls/host.key
+
+NOTES
+-----
+host 는 시작할 때 현재 인증 토큰을 표준 출력으로 한 줄 찍는다.

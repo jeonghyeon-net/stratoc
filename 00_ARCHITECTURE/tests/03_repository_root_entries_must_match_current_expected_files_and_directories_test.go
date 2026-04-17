@@ -19,7 +19,6 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 
 	expectedEntries := []string{
 		".claude:dir",
-		".env:file",
 		".gitignore:file",
 		".mise.toml:file",
 		"00_ARCHITECTURE:dir",
@@ -35,6 +34,13 @@ func TestRepositoryRootEntriesMustMatchCurrentExpectedFilesAndDirectories(t *tes
 	var actualEntries []string
 	for _, entry := range entries {
 		if entry.Name() == ".git" {
+			continue
+		}
+		ignored, err := utils.IsGitIgnored(repositoryRootPath, repositoryRootPath+"/"+entry.Name())
+		if err != nil {
+			t.Fatalf("check root entry ignored: %v", err)
+		}
+		if ignored {
 			continue
 		}
 		entryType := "file"

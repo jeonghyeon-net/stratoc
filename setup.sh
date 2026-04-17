@@ -47,14 +47,6 @@ install_brew_packages() {
   brew install tmux mise
 }
 
-ensure_dotenv() {
-  if [[ ! -f "$ROOT_DIR/.env" ]]; then
-    log "Creating empty .env. host fills AUTHORIZATION_TOKEN on first start"
-    : >"$ROOT_DIR/.env"
-  fi
-  chmod 600 "$ROOT_DIR/.env"
-}
-
 rewrite_tmux_config() {
   python3 - "$TMUX_CONFIG_FILE" "$TMUX_BLOCK_START" "$TMUX_BLOCK_END" <<'PY'
 from pathlib import Path
@@ -135,7 +127,6 @@ build_project() {
 main() {
   install_homebrew
   install_brew_packages
-  ensure_dotenv
   configure_tmux
   trust_and_install_tools
   install_hooks

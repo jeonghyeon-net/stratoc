@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 
@@ -12,6 +13,7 @@ import (
 func registerLifecycle(lifecycle fx.Lifecycle, config Config, host *http.Server, listener net.Listener, announcer *lan.Announcer) {
 	lifecycle.Append(fx.Hook{
 		OnStart: func(context.Context) error {
+			fmt.Printf("auth token: %s\n", config.AuthToken)
 			_ = announcer.Start()
 			go serveHost(config, host, listener)
 			return nil
