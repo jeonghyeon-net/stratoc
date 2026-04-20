@@ -107,6 +107,7 @@ class RemoteTerminalInputConnection(
         notifySelectionChanged()
         if (shouldHoldStandaloneJamoCommit(normalized)) {
             pendingStandaloneJamoCommit = true
+            scheduleReconcile(STANDALONE_JAMO_FLUSH_DELAY_MS)
             return result
         }
         pendingStandaloneJamoCommit = false
@@ -262,12 +263,16 @@ class RemoteTerminalInputConnection(
         flushPendingEditsNow()
     }
 
-    private fun scheduleReconcile() {
+    private fun scheduleReconcile(delayMillis: Long = 0L) {
         if (reconcileScheduled) {
             return
         }
         reconcileScheduled = true
         targetView.removeCallbacks(reconcileRunnable)
+        if (delayMillis > 0L) {
+            targetView.postDelayed(reconcileRunnable, delayMillis)
+            return
+        }
         targetView.post(reconcileRunnable)
     }
 
@@ -387,5 +392,6 @@ class RemoteTerminalInputConnection(
 
         private const val NAVIGATION_ANCHOR = 1
         private const val NAVIGATION_BUFFER_LENGTH = 2
+        private const val STANDALONE_JAMO_FLUSH_DELAY_MS = 16L
     }
 }
