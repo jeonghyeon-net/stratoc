@@ -1,5 +1,6 @@
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { Platform } from 'react-native'
 import { TerminalScreen } from './TerminalScreen'
 
 const mockOpenTerminalSession = jest.fn().mockResolvedValue(undefined)
@@ -20,6 +21,24 @@ jest.mock('@/bridge/terminal', () => ({
   },
   subscribeTerminalOutput: () => ({ remove: jest.fn() }),
 }))
+
+jest.mock('@/bridge/terminal/NativeTerminalInlineView', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+
+  const NativeTerminalInlineView = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
+    React.useImperativeHandle(ref, () => ({
+      sendSequence: jest.fn(),
+      setSoftCtrlArmed: jest.fn(),
+    }))
+    return React.createElement(View, { ...props, testID: 'mock-inline-terminal' })
+  })
+
+  return {
+    hasNativeTerminalInlineView: () => true,
+    NativeTerminalInlineView,
+  }
+})
 
 jest.mock('./XtermWebView', () => {
   const React = require('react')
@@ -72,12 +91,39 @@ it('opens native terminal session after viewport measured and removes fake input
     expect(mockOpenTerminalSession).toHaveBeenCalledWith(expect.objectContaining({ columns: 100, rows: 30 }))
   })
 
-  await waitFor(() => {
-    expect(screen.getByTestId('terminal-status').props.children).toBe('connected')
-  })
-
+  expect(screen.getByTestId('terminal-key-Ctrl')).toBeTruthy()
+  expect(screen.getByTestId('terminal-key-Esc')).toBeTruthy()
+  expect(screen.getByTestId('terminal-key-→')).toBeTruthy()
   expect(screen.queryByPlaceholderText('command')).toBeNull()
   expect(screen.queryByText('전송')).toBeNull()
+})
+
+it('keeps hidden keyboard input out of android inline native path', async () => {
+  const originalPlatform = Platform.OS
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
+
+  render(
+    <TerminalScreen
+      request={{
+        hostUrl: 'https://10.0.0.2:62589',
+        authToken: 'secret',
+        sessionName: 'session-0001',
+        theme: 'system',
+        fontScale: 1,
+      }}
+      onBack={jest.fn()}
+      inline
+    />,
+  )
+
+  fireEvent(screen.getByTestId('terminal-viewport'), 'layout', {
+    nativeEvent: { layout: { width: 900, height: 540 } },
+  })
+
+  expect(screen.getByTestId('mock-inline-terminal')).toBeTruthy()
+  expect(screen.queryByTestId('terminal-hidden-input')).toBeNull()
+
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform })
 })
 
 it('returns to session list when server replaces terminal connection', async () => {

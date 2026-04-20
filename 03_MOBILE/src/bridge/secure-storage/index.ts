@@ -1,9 +1,11 @@
 import { NativeModules } from 'react-native'
+import { clampFontScale } from '@/theme/theme'
 
 const memory = new Map<string, string>()
 
 const DEFAULT_SERVER_URL_KEY = 'settings/default-server-url'
 const DEFAULT_AUTH_TOKEN_KEY = 'settings/default-auth-token'
+const DEFAULT_FONT_SCALE_KEY = 'settings/default-font-scale'
 const SAVED_HOSTS_KEY = 'hosts/saved'
 
 type SavedHostRecord = {
@@ -89,6 +91,23 @@ export async function saveDefaultAuthToken(token: string): Promise<void> {
     return
   }
   await setItem(DEFAULT_AUTH_TOKEN_KEY, token)
+}
+
+export async function loadDefaultFontScale(): Promise<number> {
+  const raw = await getItem(DEFAULT_FONT_SCALE_KEY)
+  if (!raw) {
+    return 1
+  }
+  return clampFontScale(Number(raw))
+}
+
+export async function saveDefaultFontScale(value: number): Promise<void> {
+  const normalized = clampFontScale(value)
+  if (normalized === 1) {
+    await removeItem(DEFAULT_FONT_SCALE_KEY)
+    return
+  }
+  await setItem(DEFAULT_FONT_SCALE_KEY, String(normalized))
 }
 
 export async function loadSavedHosts(): Promise<SavedHostRecord[]> {

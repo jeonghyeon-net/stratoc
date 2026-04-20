@@ -10,6 +10,7 @@ jest.mock('./controller', () => ({
     selectedHost: null,
     defaultServerUrl: '',
     defaultAuthToken: '',
+    defaultFontScale: 1,
     hostError: '',
     sessionError: '',
     loading: false,
@@ -31,6 +32,7 @@ jest.mock('./controller', () => ({
     selectedHost: null,
     defaultServerUrl: '',
     defaultAuthToken: '',
+    defaultFontScale: 1,
     hostError: '',
     sessionError: '',
     loading: false,
@@ -48,7 +50,7 @@ jest.mock('./controller', () => ({
     authToken: 'secret',
     sessionName: 'session-0001',
     hostLabel: '# 10.0.0.2:62589',
-    theme: 'system',
+    theme: 'dark',
     fontScale: 1,
   }),
 }))
@@ -61,10 +63,14 @@ it('renders discovered hosts from loaded app state', async () => {
   })
 })
 
-it('switches to settings tab', async () => {
+it('switches to settings tab from sidebar drawer', async () => {
   render(<AppNavigation />)
-  fireEvent.press(screen.getByText('Settings'))
+  fireEvent.press(screen.getByText('☰'))
   await waitFor(() => {
-    expect(screen.getByText('기본 서버')).toBeTruthy()
+    expect(screen.getByTestId('nav-settings')).toBeTruthy()
+  })
+  fireEvent.press(screen.getByTestId('nav-settings'))
+  await waitFor(() => {
+    expect(screen.getByTestId('settings-font-scale-label')).toBeTruthy()
   })
 })

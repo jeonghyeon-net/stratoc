@@ -17,7 +17,6 @@ it('renders merged host row', () => {
       errorText=''
       onRefresh={() => {}}
       onOpen={() => {}}
-      onOpenSettings={() => {}}
       onRemove={() => {}}
     />,
   )

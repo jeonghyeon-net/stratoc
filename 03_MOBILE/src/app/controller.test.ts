@@ -74,13 +74,14 @@ it('creates terminal request for selected host', async () => {
       },
       'session-0001',
       'fallback',
+      1.15,
     ),
   ).resolves.toEqual({
     hostUrl: 'https://10.0.0.2:62589',
     authToken: 'abc',
     sessionName: 'session-0001',
     hostLabel: '# 10.0.0.2:62589',
-    theme: 'system',
-    fontScale: 1,
+    theme: 'dark',
+    fontScale: 1.15,
   })
 })

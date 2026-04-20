@@ -39,6 +39,7 @@ public final class NativeRemoteTerminalView extends View {
         void onBell();
         void onTitleChanged(@Nullable String title);
         void onSingleTapUp();
+        void onSoftCtrlStateChanged(boolean armed);
     }
 
     public TerminalEmulator mEmulator;
@@ -59,6 +60,7 @@ public final class NativeRemoteTerminalView extends View {
 
     private int mColumns = 80;
     private int mRows = 24;
+    private boolean mSoftCtrlArmed;
     private Callbacks mCallbacks;
     private RemoteTerminalInputConnection mInputConnection;
 
@@ -182,11 +184,23 @@ public final class NativeRemoteTerminalView extends View {
         emitInput(sequence.getBytes(StandardCharsets.UTF_8), true);
     }
 
+    public void setSoftCtrlArmed(boolean armed) {
+        updateSoftCtrlArmed(armed);
+    }
+
     public void sendPastedText(String text) {
         if (mEmulator == null || text == null || text.isEmpty()) return;
         stopTextSelectionMode();
         mEmulator.paste(text);
         scrollToBottom();
+    }
+
+    public void setTerminalFontScale(float scale) {
+        float clamped = Math.max(0.85f, Math.min(1.45f, scale));
+        int fontSize = Math.max(18, Math.round(28f * clamped));
+        mRenderer = new TerminalRenderer(fontSize, Typeface.MONOSPACE);
+        updateSize();
+        invalidate();
     }
 
     public void scrollToBottom() {
@@ -499,7 +513,8 @@ public final class NativeRemoteTerminalView extends View {
         }
 
         final int metaState = event.getMetaState();
-        final boolean controlDown = event.isCtrlPressed();
+        final boolean softCtrlArmed = mSoftCtrlArmed;
+        final boolean controlDown = event.isCtrlPressed() || softCtrlArmed;
         final boolean leftAltDown = (metaState & KeyEvent.META_ALT_LEFT_ON) != 0;
         final boolean shiftDown = event.isShiftPressed();
         final boolean rightAltDownFromEvent = (metaState & KeyEvent.META_ALT_RIGHT_ON) != 0;
@@ -509,7 +524,10 @@ public final class NativeRemoteTerminalView extends View {
         if (event.isAltPressed() || leftAltDown) keyMod |= KeyHandler.KEYMOD_ALT;
         if (shiftDown) keyMod |= KeyHandler.KEYMOD_SHIFT;
         if (event.isNumLockOn()) keyMod |= KeyHandler.KEYMOD_NUM_LOCK;
-        if (!event.isFunctionPressed() && handleKeyCode(keyCode, keyMod)) return true;
+        if (!event.isFunctionPressed() && handleKeyCode(keyCode, keyMod)) {
+            if (softCtrlArmed) updateSoftCtrlArmed(false);
+            return true;
+        }
 
         int bitsToClear = KeyEvent.META_CTRL_MASK;
         if (!rightAltDownFromEvent) bitsToClear |= KeyEvent.META_ALT_ON | KeyEvent.META_ALT_LEFT_ON;
@@ -530,6 +548,7 @@ public final class NativeRemoteTerminalView extends View {
             }
             inputCodePoint(event.getDeviceId(), result, controlDown, leftAltDown);
         }
+        if (softCtrlArmed) updateSoftCtrlArmed(false);
         if (mCombiningAccent != oldCombiningAccent) invalidate();
         return true;
     }
@@ -635,6 +654,8 @@ public final class NativeRemoteTerminalView extends View {
     private void sendTextToTerminalInternal(CharSequence text) {
         if (text == null || text.length() == 0) return;
         stopTextSelectionMode();
+        boolean softCtrlArmed = mSoftCtrlArmed;
+        if (softCtrlArmed) updateSoftCtrlArmed(false);
         int textLengthInChars = text.length();
         for (int i = 0; i < textLengthInChars; i++) {
             char firstChar = text.charAt(i);
@@ -649,7 +670,11 @@ public final class NativeRemoteTerminalView extends View {
                 codePoint = firstChar;
             }
 
-            boolean ctrlHeld = false;
+            boolean ctrlHeld = softCtrlArmed;
+            softCtrlArmed = false;
+            if (ctrlHeld && handleSoftCtrlCodePoint(codePoint)) {
+                continue;
+            }
             if (codePoint <= 31 && codePoint != '\u001b') {
                 if (codePoint == '\n') codePoint = '\r';
                 ctrlHeld = true;
@@ -663,6 +688,57 @@ public final class NativeRemoteTerminalView extends View {
             }
             inputCodePoint(KEY_EVENT_SOURCE_SOFT_KEYBOARD, codePoint, ctrlHeld, false);
         }
+    }
+
+    private boolean handleSoftCtrlCodePoint(int codePoint) {
+        if (codePoint == 'v' || codePoint == 'V') {
+            requestPasteFromClipboard();
+            return true;
+        }
+        Integer ctrlCodePoint = controlCodePointFor(codePoint);
+        if (ctrlCodePoint == null) {
+            return false;
+        }
+        emitInput(new byte[]{(byte) (int) ctrlCodePoint}, true);
+        return true;
+    }
+
+    @Nullable
+    private Integer controlCodePointFor(int codePoint) {
+        if (codePoint >= 'a' && codePoint <= 'z') {
+            return codePoint - 'a' + 1;
+        }
+        if (codePoint >= 'A' && codePoint <= 'Z') {
+            return codePoint - 'A' + 1;
+        }
+        if (codePoint == ' ' || codePoint == '2') {
+            return 0;
+        }
+        if (codePoint == '[' || codePoint == '3') {
+            return 27;
+        }
+        if (codePoint == '\\' || codePoint == '4') {
+            return 28;
+        }
+        if (codePoint == ']' || codePoint == '5') {
+            return 29;
+        }
+        if (codePoint == '^' || codePoint == '6') {
+            return 30;
+        }
+        if (codePoint == '_' || codePoint == '7' || codePoint == '/') {
+            return 31;
+        }
+        if (codePoint == '8') {
+            return 127;
+        }
+        return null;
+    }
+
+    private void updateSoftCtrlArmed(boolean armed) {
+        if (mSoftCtrlArmed == armed) return;
+        mSoftCtrlArmed = armed;
+        if (mCallbacks != null) mCallbacks.onSoftCtrlStateChanged(armed);
     }
 
     private void emitCodePoint(boolean prependEscape, int codePoint) {

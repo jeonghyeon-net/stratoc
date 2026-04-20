@@ -24,7 +24,8 @@ class TerminalModule(private val context: ReactApplicationContext) : ReactContex
             val hostUrl = payload.getString("hostUrl") ?: throw IllegalArgumentException("hostUrl missing")
             val authToken = payload.getString("authToken") ?: ""
             val sessionName = payload.getString("sessionName") ?: throw IllegalArgumentException("sessionName missing")
-            val intent = TerminalActivity.intent(context, hostUrl, authToken, sessionName)
+            val fontScale = if (payload.hasKey("fontScale")) payload.getDouble("fontScale").toFloat() else 1f
+            val intent = TerminalActivity.intent(context, hostUrl, authToken, sessionName, fontScale)
             val activity = currentActivity
             if (activity != null) {
                 activity.startActivity(intent)
@@ -66,25 +67,42 @@ class TerminalModule(private val context: ReactApplicationContext) : ReactContex
     companion object {
         private var instance: WeakReference<TerminalModule>? = null
 
-        fun emitOpened(sessionName: String) {
+        fun emitOpened(sessionName: String, hostUrl: String) {
             instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
                 putString("type", "opened")
                 putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
             })
         }
 
-        fun emitDisconnected(message: String) {
+        fun emitDisconnected(sessionName: String, hostUrl: String, message: String) {
             instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
                 putString("type", "disconnected")
                 putBoolean("retrying", false)
                 putString("message", message)
+                putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
             })
         }
 
-        fun emitClosed(reason: String) {
+        fun emitClosed(reason: String, sessionName: String, hostUrl: String, message: String? = null) {
             instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
                 putString("type", "closed")
                 putString("reason", reason)
+                putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
+                if (!message.isNullOrBlank()) {
+                    putString("message", message)
+                }
+            })
+        }
+
+        fun emitSoftCtrlState(sessionName: String, hostUrl: String, armed: Boolean) {
+            instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
+                putString("type", "soft-ctrl-state")
+                putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
+                putBoolean("armed", armed)
             })
         }
 

@@ -8,11 +8,13 @@ import {
   addSavedHost,
   clearHostToken,
   loadDefaultAuthToken,
+  loadDefaultFontScale,
   loadDefaultServerUrl,
   loadHostToken,
   loadSavedHosts,
   removeSavedHost,
   saveDefaultAuthToken,
+  saveDefaultFontScale,
   saveDefaultServerUrl,
   saveHostToken,
 } from '@/bridge/secure-storage'
@@ -27,6 +29,7 @@ export type AppState = {
   selectedHost: HostItem | null
   defaultServerUrl: string
   defaultAuthToken: string
+  defaultFontScale: number
   hostError: string
   sessionError: string
   loading: boolean
@@ -41,6 +44,7 @@ export function createInitialAppState(): AppState {
     selectedHost: null,
     defaultServerUrl: '',
     defaultAuthToken: '',
+    defaultFontScale: 1,
     hostError: '',
     sessionError: '',
     loading: false,
@@ -52,6 +56,7 @@ export async function loadAppState(): Promise<AppState> {
   const state = createInitialAppState()
   state.defaultServerUrl = await loadDefaultServerUrl()
   state.defaultAuthToken = await loadDefaultAuthToken()
+  state.defaultFontScale = await loadDefaultFontScale()
   state.hosts = await refreshHosts(state.defaultServerUrl, state.defaultAuthToken)
   return state
 }
@@ -135,9 +140,10 @@ export async function deleteSessionForHost(host: HostItem, name: string, default
   }
 }
 
-export async function saveSettings(serverUrl: string, authToken: string) {
+export async function saveSettings(serverUrl: string, authToken: string, fontScale: number) {
   await saveDefaultServerUrl(serverUrl.trim())
   await saveDefaultAuthToken(authToken.trim())
+  await saveDefaultFontScale(fontScale)
 }
 
 export async function saveManualHost(url: string, token: string) {
@@ -152,15 +158,15 @@ export async function removeManualHost(url: string) {
   await removeSavedHost(normalizeHostUrl(url))
 }
 
-export async function terminalRequestForSession(host: HostItem, sessionName: string, defaultAuthToken: string) {
+export async function terminalRequestForSession(host: HostItem, sessionName: string, defaultAuthToken: string, defaultFontScale: number) {
   const token = (await loadHostToken(host.url)) ?? defaultAuthToken
   return {
     hostUrl: host.url,
     authToken: token,
     sessionName,
     hostLabel: host.label,
-    theme: 'system' as const,
-    fontScale: 1,
+    theme: 'dark' as const,
+    fontScale: defaultFontScale,
   }
 }
 

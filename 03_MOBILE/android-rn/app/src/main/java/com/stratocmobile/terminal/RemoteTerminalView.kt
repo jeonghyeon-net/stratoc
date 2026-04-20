@@ -54,7 +54,7 @@ class RemoteTerminalView @JvmOverloads constructor(
     var onBell: (() -> Unit)? = null
 
     init {
-        setBackgroundColor(Color.parseColor("#020617"))
+        setBackgroundColor(Color.BLACK)
         isFocusable = true
         isFocusableInTouchMode = true
         isLongClickable = true
@@ -109,7 +109,7 @@ class RemoteTerminalView @JvmOverloads constructor(
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.parseColor("#020617"))
+        canvas.drawColor(Color.BLACK)
         renderer.render(emulator, canvas, topRow, -1, -1, -1, -1)
     }
 

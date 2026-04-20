@@ -10,9 +10,10 @@ export type OpenTerminalSessionRequest = {
 }
 
 export type TerminalSessionEvent =
-  | { type: 'opened'; sessionName: string }
-  | { type: 'closed'; reason: 'user' | 'remote' | 'error' }
-  | { type: 'disconnected'; retrying: boolean; message?: string }
-  | { type: 'auth-error' }
-  | { type: 'session-not-found' }
-  | { type: 'certificate-changed'; hostUrl: string }
+  | { type: 'opened'; sessionName: string; hostUrl?: string }
+  | { type: 'closed'; reason: 'user' | 'remote' | 'error'; sessionName?: string; hostUrl?: string; message?: string }
+  | { type: 'disconnected'; retrying: boolean; message?: string; sessionName?: string; hostUrl?: string }
+  | { type: 'auth-error'; sessionName?: string; hostUrl?: string }
+  | { type: 'session-not-found'; sessionName?: string; hostUrl?: string }
+  | { type: 'certificate-changed'; hostUrl: string; sessionName?: string }
+  | { type: 'soft-ctrl-state'; armed: boolean; sessionName?: string; hostUrl?: string }

@@ -36,11 +36,11 @@ const defaultOptions = {
   fontSize: 14,
   scrollback: 10000,
   theme: {
-    background: '#020617',
+    background: '#000000',
     foreground: '#e2e8f0',
     cursor: '#f8fafc',
     selectionBackground: '#334155',
-    black: '#020617',
+    black: '#000000',
     red: '#ef4444',
     green: '#22c55e',
     yellow: '#eab308',
@@ -231,7 +231,7 @@ function isAllowedTerminalUrl(url: string) {
 function bridgeBootstrapScript(options: Record<string, unknown>) {
   const background = typeof options.theme === 'object' && options.theme && 'background' in options.theme
     ? String((options.theme as Record<string, unknown>).background)
-    : '#020617'
+    : '#000000'
   return `
     (function() {
       if (!window.__STRATOC_TERM_POSTMESSAGE_BRIDGE__) {

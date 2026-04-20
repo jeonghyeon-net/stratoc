@@ -6,11 +6,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -38,11 +40,23 @@ class TerminalActivity : Activity() {
     private val hostUrl: String by lazy { intent.getStringExtra(EXTRA_HOST_URL).orEmpty() }
     private val authToken: String by lazy { intent.getStringExtra(EXTRA_AUTH_TOKEN).orEmpty() }
     private val sessionName: String by lazy { intent.getStringExtra(EXTRA_SESSION_NAME).orEmpty() }
+    private val fontScale: Float by lazy { intent.getFloatExtra(EXTRA_FONT_SCALE, 1f) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         @Suppress("DEPRECATION")
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        WindowCompat.setDecorFitsSystemWindows(window, true)
+        window.statusBarColor = Color.BLACK
+        window.navigationBarColor = Color.BLACK
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
+        WindowCompat.getInsetsController(window, window.decorView)?.let { controller ->
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
+        }
         setContentView(createContentView())
         imeController = TerminalImeController(this, terminalView) { window.decorView.hasWindowFocus() }
         socket = RemoteTerminalSocket(
@@ -55,7 +69,7 @@ class TerminalActivity : Activity() {
                     runOnUiThread {
                         connectStarted = true
                         setStatus("connected")
-                        TerminalModule.emitOpened(sessionName)
+                        TerminalModule.emitOpened(sessionName, hostUrl)
                     }
                 }
 
@@ -107,10 +121,9 @@ class TerminalActivity : Activity() {
     private fun createContentView(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#020617"))
+            setBackgroundColor(Color.BLACK)
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
-
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -172,18 +185,21 @@ class TerminalActivity : Activity() {
                 override fun onSingleTapUp() {
                     runOnUiThread { focusTerminal() }
                 }
+
+                override fun onSoftCtrlStateChanged(armed: Boolean) = Unit
             })
+            setTerminalFontScale(fontScale)
             setOnClickListener { focusTerminal() }
         }
 
         val terminalContainer = FrameLayout(this).apply {
-            setBackgroundColor(Color.parseColor("#020617"))
+            setBackgroundColor(Color.BLACK)
             addView(terminalView)
         }
 
         val accessoryBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(Color.parseColor("#020617"))
+            setBackgroundColor(Color.BLACK)
             setPadding(dp(8), dp(8), dp(8), dp(8))
             addView(keyButton("ESC") { terminalView.sendEscapeSequence("\u001b") }, accessoryButtonLayout())
             addView(keyButton("TAB") { terminalView.sendEscapeSequence("\t") }, accessoryButtonLayout())
@@ -215,9 +231,12 @@ class TerminalActivity : Activity() {
         TerminalModule.log("handleDisconnected message=$normalizedMessage shouldFinish=$shouldFinish")
         setStatus(normalizedMessage)
         if (shouldFinish) {
-            emitClosed("remote")
+            if (normalizedMessage.contains("replaced", ignoreCase = true)) {
+                TerminalModule.emitDisconnected(sessionName, hostUrl, normalizedMessage)
+            }
+            emitClosed("remote", normalizedMessage)
         } else {
-            TerminalModule.emitDisconnected(normalizedMessage)
+            TerminalModule.emitDisconnected(sessionName, hostUrl, normalizedMessage)
         }
         if (shouldShowToast) {
             Toast.makeText(this, normalizedMessage, Toast.LENGTH_SHORT).show()
@@ -239,10 +258,10 @@ class TerminalActivity : Activity() {
         openConnection()
     }
 
-    private fun emitClosed(reason: String) {
+    private fun emitClosed(reason: String, message: String? = null) {
         if (emittedClosed) return
         emittedClosed = true
-        TerminalModule.emitClosed(reason)
+        TerminalModule.emitClosed(reason, sessionName, hostUrl, message)
     }
 
     private fun pasteClipboard() {
@@ -288,12 +307,14 @@ class TerminalActivity : Activity() {
         private const val EXTRA_HOST_URL = "hostUrl"
         private const val EXTRA_AUTH_TOKEN = "authToken"
         private const val EXTRA_SESSION_NAME = "sessionName"
+        private const val EXTRA_FONT_SCALE = "fontScale"
 
-        fun intent(context: Context, hostUrl: String, authToken: String, sessionName: String): Intent {
+        fun intent(context: Context, hostUrl: String, authToken: String, sessionName: String, fontScale: Float): Intent {
             return Intent(context, TerminalActivity::class.java)
                 .putExtra(EXTRA_HOST_URL, hostUrl)
                 .putExtra(EXTRA_AUTH_TOKEN, authToken)
                 .putExtra(EXTRA_SESSION_NAME, sessionName)
+                .putExtra(EXTRA_FONT_SCALE, fontScale)
         }
     }
 }

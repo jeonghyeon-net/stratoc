@@ -2,11 +2,13 @@ import {
   addSavedHost,
   clearHostToken,
   loadDefaultAuthToken,
+  loadDefaultFontScale,
   loadDefaultServerUrl,
   loadHostToken,
   loadSavedHosts,
   resetMemoryStorage,
   saveDefaultAuthToken,
+  saveDefaultFontScale,
   saveDefaultServerUrl,
   saveHostToken,
 } from './index'
@@ -21,6 +23,11 @@ it('persists default settings in fallback storage', async () => {
 
   await expect(loadDefaultServerUrl()).resolves.toBe('https://10.0.0.2:62589')
   await expect(loadDefaultAuthToken()).resolves.toBe('secret')
+})
+
+it('persists default font scale in fallback storage', async () => {
+  await saveDefaultFontScale(1.2)
+  await expect(loadDefaultFontScale()).resolves.toBe(1.2)
 })
 
 it('persists per-host token and clears it', async () => {
