@@ -13,6 +13,7 @@ jest.mock('./controller', () => ({
     hostError: '',
     sessionError: '',
     loading: false,
+    terminalRequest: null,
   }),
   loadAppState: jest.fn().mockResolvedValue({
     screen: 'hosts',
@@ -33,15 +34,23 @@ jest.mock('./controller', () => ({
     hostError: '',
     sessionError: '',
     loading: false,
+    terminalRequest: null,
   }),
   refreshHosts: jest.fn().mockResolvedValue([]),
   openHost: jest.fn().mockResolvedValue({ sessions: [], sessionError: '' }),
-  createSessionForHost: jest.fn().mockResolvedValue({ created: 'session-0001', sessions: [] }),
-  deleteSessionForHost: jest.fn().mockResolvedValue([]),
+  createSessionForHost: jest.fn().mockResolvedValue({ created: 'session-0001', sessions: [], sessionError: '' }),
+  deleteSessionForHost: jest.fn().mockResolvedValue({ sessions: [], sessionError: '' }),
   saveSettings: jest.fn().mockResolvedValue(undefined),
   saveManualHost: jest.fn().mockResolvedValue(undefined),
   removeManualHost: jest.fn().mockResolvedValue(undefined),
-  connectToSession: jest.fn().mockResolvedValue(undefined),
+  terminalRequestForSession: jest.fn().mockResolvedValue({
+    hostUrl: 'https://10.0.0.2:62589',
+    authToken: 'secret',
+    sessionName: 'session-0001',
+    hostLabel: '# 10.0.0.2:62589',
+    theme: 'system',
+    fontScale: 1,
+  }),
 }))
 
 it('renders discovered hosts from loaded app state', async () => {

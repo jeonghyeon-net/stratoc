@@ -9,8 +9,9 @@ import (
 const tlsDirectorySubpath = ".config/stratoc/tls"
 
 func ensureTLSConfig(config Config) Config {
+	managed := strings.TrimSpace(config.TLSCertPath) == "" && strings.TrimSpace(config.TLSKeyPath) == ""
 	config.TLSCertPath, config.TLSKeyPath = tlsPaths(config)
-	ensureTLSFiles(config.TLSCertPath, config.TLSKeyPath)
+	ensureTLSFiles(config.TLSCertPath, config.TLSKeyPath, managed)
 	return config
 }
 

@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   AppScreen,
   AppState,
-  connectToSession,
   createInitialAppState,
   createSessionForHost,
   deleteSessionForHost,
@@ -13,10 +12,12 @@ import {
   removeManualHost,
   saveManualHost,
   saveSettings,
+  terminalRequestForSession,
 } from './controller'
 import { HostListScreen } from '@/screens/hosts/HostListScreen'
 import { SessionListScreen } from '@/screens/sessions/SessionListScreen'
 import { SettingsScreen } from '@/screens/settings/SettingsScreen'
+import { TerminalScreen } from '@/screens/terminal/TerminalScreen'
 
 export function AppNavigation() {
   const [state, setState] = useState<AppState>(createInitialAppState)
@@ -28,60 +29,140 @@ export function AppNavigation() {
   }, [])
 
   const reloadHosts = useCallback(async () => {
-    const hosts = await refreshHosts(state.defaultServerUrl, state.defaultAuthToken)
-    setState((current) => ({ ...current, hosts }))
+    setState((current) => ({ ...current, loading: true, hostError: '' }))
+    try {
+      const hosts = await refreshHosts(state.defaultServerUrl, state.defaultAuthToken)
+      setState((current) => ({ ...current, hosts, loading: false, hostError: '' }))
+    } catch (caught) {
+      const message = asMessage(caught, '(host refresh failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        hostError: message,
+      }))
+    }
   }, [state.defaultAuthToken, state.defaultServerUrl])
 
   const openSelectedHost = useCallback(async (host: AppState['hosts'][number]) => {
-    const result = await openHost(host, state.defaultAuthToken)
-    setState((current) => ({
-      ...current,
-      screen: 'sessions',
-      selectedHost: host,
-      sessions: result.sessions,
-      sessionError: result.sessionError,
-    }))
+    setState((current) => ({ ...current, loading: true, hostError: '' }))
+    try {
+      const result = await openHost(host, state.defaultAuthToken)
+      setState((current) => ({
+        ...current,
+        loading: false,
+        screen: 'sessions',
+        selectedHost: host,
+        sessions: result.sessions,
+        sessionError: result.sessionError,
+        terminalRequest: null,
+      }))
+    } catch (caught) {
+      const message = asMessage(caught, '(open host failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        hostError: message,
+      }))
+    }
   }, [state.defaultAuthToken])
 
   const createSelectedSession = useCallback(async () => {
     if (!state.selectedHost) {
       return
     }
-    const result = await createSessionForHost(state.selectedHost, state.sessions, state.defaultAuthToken)
-    setState((current) => ({ ...current, sessions: result.sessions }))
+    setState((current) => ({ ...current, loading: true, sessionError: '' }))
+    try {
+      const result = await createSessionForHost(state.selectedHost, state.sessions, state.defaultAuthToken)
+      setState((current) => ({
+        ...current,
+        loading: false,
+        sessions: result.sessions,
+        sessionError: result.sessionError || (result.created ? '' : '(create session failed)'),
+      }))
+    } catch (caught) {
+      const message = asMessage(caught, '(create session failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        sessionError: message,
+      }))
+    }
   }, [state.defaultAuthToken, state.selectedHost, state.sessions])
 
   const deleteSelectedSession = useCallback(async (name: string) => {
     if (!state.selectedHost) {
       return
     }
-    const sessions = await deleteSessionForHost(state.selectedHost, name, state.defaultAuthToken)
-    setState((current) => ({ ...current, sessions }))
+    setState((current) => ({ ...current, loading: true, sessionError: '' }))
+    try {
+      const result = await deleteSessionForHost(state.selectedHost, name, state.defaultAuthToken)
+      setState((current) => ({ ...current, loading: false, sessions: result.sessions, sessionError: result.sessionError }))
+    } catch (caught) {
+      const message = asMessage(caught, '(delete session failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        sessionError: message,
+      }))
+    }
   }, [state.defaultAuthToken, state.selectedHost])
 
   const persistSettings = useCallback(async () => {
-    await saveSettings(state.defaultServerUrl, state.defaultAuthToken)
-    await reloadHosts()
-    setState((current) => ({ ...current, screen: 'hosts' }))
+    setState((current) => ({ ...current, loading: true, hostError: '' }))
+    try {
+      await saveSettings(state.defaultServerUrl, state.defaultAuthToken)
+      await reloadHosts()
+      setState((current) => ({ ...current, loading: false, screen: 'hosts' }))
+    } catch (caught) {
+      const message = asMessage(caught, '(save settings failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        hostError: message,
+      }))
+    }
   }, [reloadHosts, state.defaultAuthToken, state.defaultServerUrl])
 
   const saveHost = useCallback(async () => {
-    await saveManualHost(manualHostUrl, manualHostToken)
-    setManualHostUrl('')
-    setManualHostToken('')
-    await reloadHosts()
+    setState((current) => ({ ...current, loading: true, hostError: '' }))
+    try {
+      await saveManualHost(manualHostUrl, manualHostToken)
+      setManualHostUrl('')
+      setManualHostToken('')
+      await reloadHosts()
+      setState((current) => ({ ...current, loading: false, hostError: '' }))
+    } catch (caught) {
+      const message = asMessage(caught, '(save host failed)')
+      setState((current) => ({
+        ...current,
+        loading: false,
+        hostError: message,
+      }))
+    }
   }, [manualHostToken, manualHostUrl, reloadHosts])
 
   const currentContent = useMemo(() => {
+    if (state.screen === 'terminal' && state.terminalRequest) {
+      return (
+        <TerminalScreen
+          request={state.terminalRequest}
+          onBack={() => setState((current) => ({ ...current, screen: 'sessions', terminalRequest: null }))}
+        />
+      )
+    }
     if (state.screen === 'sessions' && state.selectedHost) {
       return (
         <SessionListScreen
           items={state.sessions}
-          errorText={state.sessionError}
+          errorText={state.sessionError || (state.loading ? '(loading...)' : '')}
           onBack={() => setState((current) => ({ ...current, screen: 'hosts', sessionError: '' }))}
           onCreate={createSelectedSession}
           onDelete={(item) => void deleteSelectedSession(item.name)}
-          onOpen={(item) => void connectToSession(state.selectedHost!, item.name, state.defaultAuthToken)}
+          onOpen={(item) =>
+            void terminalRequestForSession(state.selectedHost!, item.name, state.defaultAuthToken).then((request) =>
+              setState((current) => ({ ...current, screen: 'terminal', terminalRequest: request })),
+            )
+          }
         />
       )
     }
@@ -101,10 +182,18 @@ export function AppNavigation() {
       <View style={styles.hostsContainer}>
         <HostListScreen
           items={state.hosts}
+          errorText={state.hostError || (state.loading ? '(loading...)' : '')}
           onRefresh={() => void reloadHosts()}
           onOpen={(host) => void openSelectedHost(host)}
           onOpenSettings={() => setState((current) => ({ ...current, screen: 'settings' }))}
-          onRemove={(host) => void removeManualHost(host.url).then(reloadHosts)}
+          onRemove={(host) =>
+            void removeManualHost(host.url)
+              .then(reloadHosts)
+              .catch((caught) => {
+                const message = asMessage(caught, '(remove host failed)')
+                setState((current) => ({ ...current, hostError: message }))
+              })
+          }
         />
         <View style={styles.addHostForm}>
           <Text style={styles.formTitle}>수동 서버 추가</Text>
@@ -124,7 +213,7 @@ export function AppNavigation() {
         {renderTab('hosts', state.screen, () => setState((current) => ({ ...current, screen: 'hosts' })))}
         {renderTab('settings', state.screen, () => setState((current) => ({ ...current, screen: 'settings' })))}
       </View>
-      <ScrollView contentContainerStyle={styles.scrollContent}>{currentContent}</ScrollView>
+      <View style={styles.contentArea}>{currentContent}</View>
     </View>
   )
 }
@@ -142,8 +231,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  scrollContent: {
-    flexGrow: 1,
+  contentArea: {
+    flex: 1,
   },
   tabBar: {
     flexDirection: 'row',
@@ -193,3 +282,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 })
+
+function asMessage(caught: unknown, fallback: string) {
+  if (caught instanceof Error && caught.message.trim()) {
+    return caught.message
+  }
+  return fallback
+}

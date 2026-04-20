@@ -14,6 +14,7 @@ it('renders merged host row', () => {
   const screen = render(
     <HostListScreen
       items={[item]}
+      errorText=''
       onRefresh={() => {}}
       onOpen={() => {}}
       onOpenSettings={() => {}}

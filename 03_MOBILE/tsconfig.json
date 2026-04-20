@@ -1,18 +1,12 @@
 {
+  "extends": "@react-native/typescript-config/tsconfig.json",
   "compilerOptions": {
-    "target": "es2020",
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
     "strict": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "baseUrl": ".",
     "types": ["jest", "react", "react-native"],
     "paths": {
       "@/*": ["src/*"]
     }
   },
-  "include": ["src", "index.ts", "jest.setup.ts"]
+  "include": ["App.tsx", "index.js", "src", "index.ts", "jest.setup.ts"]
 }

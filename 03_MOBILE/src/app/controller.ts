@@ -1,7 +1,7 @@
 import { createHttpClient } from '@/api/httpClient'
 import { HostDraft, mergeHosts } from '@/api/hosts'
 import { createSession, deleteSession, listSessions } from '@/api/sessions'
-import { HostItem, normalizeHostUrl } from '@/models/host'
+import { HostItem, normalizeHostUrl, parseHostUrl } from '@/models/host'
 import { SessionItem } from '@/models/session'
 import { discoverHosts } from '@/bridge/discovery'
 import {
@@ -16,9 +16,9 @@ import {
   saveDefaultServerUrl,
   saveHostToken,
 } from '@/bridge/secure-storage'
-import { openTerminalSession } from '@/bridge/terminal/index'
+import { OpenTerminalSessionRequest } from '@/bridge/terminal/types'
 
-export type AppScreen = 'hosts' | 'sessions' | 'settings'
+export type AppScreen = 'hosts' | 'sessions' | 'settings' | 'terminal'
 
 export type AppState = {
   screen: AppScreen
@@ -30,6 +30,7 @@ export type AppState = {
   hostError: string
   sessionError: string
   loading: boolean
+  terminalRequest: OpenTerminalSessionRequest | null
 }
 
 export function createInitialAppState(): AppState {
@@ -43,6 +44,7 @@ export function createInitialAppState(): AppState {
     hostError: '',
     sessionError: '',
     loading: false,
+    terminalRequest: null,
   }
 }
 
@@ -99,28 +101,38 @@ export async function openHost(host: HostItem, defaultAuthToken: string): Promis
     const sessions = await listSessions(client, token)
     return { sessions, sessionError: '' }
   } catch (error) {
-    const message = (error as Error).message
+    const message = errorMessage(error)
     if (message === 'authorization required' || message === 'wrong authorization token') {
       await clearHostToken(host.url)
       return { sessions: [], sessionError: message === 'wrong authorization token' ? '(wrong authorization token)' : '(authorization required)' }
     }
-    return { sessions: [], sessionError: '(connection failed)' }
+    return { sessions: [], sessionError: message || '(connection failed)' }
   }
 }
 
 export async function createSessionForHost(host: HostItem, existing: SessionItem[], defaultAuthToken: string) {
   const token = (await loadHostToken(host.url)) ?? defaultAuthToken
   const client = createHttpClient(host.url)
-  const created = await createSession(client, existing, token)
-  const sessions = await listSessions(client, token)
-  return { created, sessions }
+  try {
+    const created = await createSession(client, existing, token)
+    const sessions = await listSessions(client, token)
+    return { created, sessions, sessionError: '' }
+  } catch (error) {
+    const sessionError = await mapSessionError(host, error)
+    return { created: '', sessions: [], sessionError }
+  }
 }
 
 export async function deleteSessionForHost(host: HostItem, name: string, defaultAuthToken: string) {
   const token = (await loadHostToken(host.url)) ?? defaultAuthToken
   const client = createHttpClient(host.url)
-  await deleteSession(client, name, token)
-  return listSessions(client, token)
+  try {
+    await deleteSession(client, name, token)
+    return { sessions: await listSessions(client, token), sessionError: '' }
+  } catch (error) {
+    const sessionError = await mapSessionError(host, error)
+    return { sessions: [], sessionError }
+  }
 }
 
 export async function saveSettings(serverUrl: string, authToken: string) {
@@ -140,19 +152,35 @@ export async function removeManualHost(url: string) {
   await removeSavedHost(normalizeHostUrl(url))
 }
 
-export async function connectToSession(host: HostItem, sessionName: string, defaultAuthToken: string) {
+export async function terminalRequestForSession(host: HostItem, sessionName: string, defaultAuthToken: string) {
   const token = (await loadHostToken(host.url)) ?? defaultAuthToken
-  await openTerminalSession({
+  return {
     hostUrl: host.url,
     authToken: token,
     sessionName,
     hostLabel: host.label,
-    theme: 'system',
+    theme: 'system' as const,
     fontScale: 1,
-  })
+  }
+}
+
+async function mapSessionError(host: HostItem, error: unknown) {
+  const message = errorMessage(error)
+  if (message === 'authorization required' || message === 'wrong authorization token') {
+    await clearHostToken(host.url)
+    return message === 'wrong authorization token' ? '(wrong authorization token)' : '(authorization required)'
+  }
+  return message || '(connection failed)'
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message.trim()
+  }
+  return String(error ?? '').trim()
 }
 
 function labelFromUrl(raw: string) {
-  const url = new URL(normalizeHostUrl(raw))
-  return `# ${url.host}`
+  const parsed = parseHostUrl(normalizeHostUrl(raw))
+  return `# ${parsed?.hostname ?? raw}`
 }

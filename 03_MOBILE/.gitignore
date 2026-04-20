@@ -5,3 +5,13 @@ ios/build
 android/.gradle
 android/build
 android/app/build
+ios-rn/build
+ios-rn/Pods
+ios-rn/Podfile.lock
+android-rn/.gradle
+android-rn/build
+android-rn/app/build
+android-rn/app/.cxx
+android-rn/local.properties
+android-rn/app/src/main/assets
+ios-rn/.xcode.env.local

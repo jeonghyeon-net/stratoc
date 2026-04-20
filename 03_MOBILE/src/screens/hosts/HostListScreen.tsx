@@ -4,12 +4,14 @@ import { HostItem } from '@/models/host'
 
 export function HostListScreen({
   items,
+  errorText,
   onRefresh,
   onOpen,
   onOpenSettings,
   onRemove,
 }: {
   items: HostItem[]
+  errorText: string
   onRefresh: () => void
   onOpen: (item: HostItem) => void
   onOpenSettings: () => void
@@ -25,6 +27,7 @@ export function HostListScreen({
           <Text>설정</Text>
         </Pressable>
       </View>
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -86,6 +89,9 @@ const styles = StyleSheet.create({
     color: '#71717a',
   },
   remove: {
+    color: '#dc2626',
+  },
+  error: {
     color: '#dc2626',
   },
 })

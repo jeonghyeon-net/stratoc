@@ -1,3 +1,6 @@
+import { NativeModules } from 'react-native'
+import { normalizeHostUrl, parseHostUrl } from '@/models/host'
+
 export type HttpClient = {
   get<T>(path: string, token?: string): Promise<T>
   post<T>(path: string, body: unknown, token?: string): Promise<T>
@@ -5,6 +8,10 @@ export type HttpClient = {
 }
 
 export type FetchLike = typeof fetch
+
+type NativeApiModule = {
+  request(payload: { baseUrl: string; path: string; method: 'GET' | 'POST' | 'DELETE'; token?: string; body?: string }): Promise<{ status: number; body: string }>
+}
 
 export function createHttpClient(baseUrl: string, fetchImpl: FetchLike = fetch): HttpClient {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl)
@@ -37,6 +44,24 @@ async function request<T>(
     headers.set('Content-Type', 'application/json')
   }
 
+  const native = nativeApiModule()
+  if (native) {
+    const response = await native.request({
+      baseUrl,
+      path,
+      method,
+      token,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    if (response.status < 200 || response.status >= 300) {
+      throw readNativeError(response)
+    }
+    if (method === 'DELETE' || response.status === 204 || response.body.trim() === '') {
+      return undefined as T
+    }
+    return JSON.parse(response.body) as T
+  }
+
   const response = await fetchImpl(`${baseUrl}${path}`, {
     method,
     headers,
@@ -50,6 +75,14 @@ async function request<T>(
     return undefined as T
   }
   return (await response.json()) as T
+}
+
+function nativeApiModule(): NativeApiModule | null {
+  const module = NativeModules.ApiModule as Partial<NativeApiModule> | undefined
+  if (!module?.request) {
+    return null
+  }
+  return module as NativeApiModule
 }
 
 async function readError(response: Response) {
@@ -67,18 +100,29 @@ async function readError(response: Response) {
   return new Error(`unexpected status: ${response.status}`)
 }
 
+function readNativeError(response: { status: number; body: string }) {
+  try {
+    const payload = JSON.parse(response.body) as { error?: string }
+    if (payload.error) {
+      return new Error(payload.error)
+    }
+  } catch {
+    if (response.body.trim()) {
+      return new Error(response.body.trim())
+    }
+  }
+  return new Error(`unexpected status: ${response.status}`)
+}
+
 function normalizeBaseUrl(raw: string) {
   const value = raw.trim()
   if (!value) {
     throw new Error('base url missing')
   }
-  const normalized = value.includes('://') ? value : `https://${value}`
-  const url = new URL(normalized)
-  if (url.protocol !== 'https:') {
+  const normalized = normalizeHostUrl(value)
+  const parsed = parseHostUrl(normalized)
+  if (!parsed || parsed.scheme !== 'https:') {
     throw new Error(`https required: ${normalized}`)
   }
-  url.pathname = ''
-  url.search = ''
-  url.hash = ''
-  return url.toString().replace(/\/$/, '')
+  return normalized
 }
