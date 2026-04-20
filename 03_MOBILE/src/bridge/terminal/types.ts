@@ -5,6 +5,8 @@ export type OpenTerminalSessionRequest = {
   hostLabel?: string
   theme: 'system' | 'dark' | 'light'
   fontScale: number
+  columns?: number
+  rows?: number
 }
 
 export type TerminalSessionEvent =

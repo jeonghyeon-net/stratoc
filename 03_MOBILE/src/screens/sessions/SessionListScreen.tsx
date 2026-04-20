@@ -29,7 +29,7 @@ export function SessionListScreen({
       </View>
       {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
       <FlatList
-        data={items}
+        data={items ?? []}
         keyExtractor={(item) => item.name}
         renderItem={({ item }) => (
           <View style={styles.row}>

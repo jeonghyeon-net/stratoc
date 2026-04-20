@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
+	"os"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 	"github.com/jeonghyeon-net/stratoc/01_SERVER/internal/session"
@@ -25,6 +28,12 @@ func writeSessionError(writer http.ResponseWriter, err error) {
 
 func isExpectedClose(err error) bool {
 	if err == nil || errors.Is(err, io.EOF) || errors.Is(err, context.Canceled) {
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, os.ErrClosed) {
+		return true
+	}
+	if errors.Is(err, syscall.EPIPE) || errors.Is(err, syscall.ECONNRESET) {
 		return true
 	}
 	var closeError *websocket.CloseError

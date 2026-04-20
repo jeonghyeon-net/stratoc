@@ -20,9 +20,9 @@ it('merges duplicate host urls and accumulates source flags', () => {
 
   expect(items).toEqual([
     {
-      id: 'https://10.0.0.2:8443',
+      id: 'https://10.0.0.2:62589',
       label: '# saved',
-      url: 'https://10.0.0.2:8443',
+      url: 'https://10.0.0.2:62589',
       status: '수동 추가',
       tokenState: 'cached',
       source: { saved: true, defaultConfigured: false, discovered: true },

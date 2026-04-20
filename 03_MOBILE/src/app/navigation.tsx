@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import {
   AppScreen,
   AppState,
@@ -18,6 +18,7 @@ import { HostListScreen } from '@/screens/hosts/HostListScreen'
 import { SessionListScreen } from '@/screens/sessions/SessionListScreen'
 import { SettingsScreen } from '@/screens/settings/SettingsScreen'
 import { TerminalScreen } from '@/screens/terminal/TerminalScreen'
+import { hasNativeTerminalModule, openTerminalSession } from '@/bridge/terminal'
 
 export function AppNavigation() {
   const [state, setState] = useState<AppState>(createInitialAppState)
@@ -147,6 +148,14 @@ export function AppNavigation() {
         <TerminalScreen
           request={state.terminalRequest}
           onBack={() => setState((current) => ({ ...current, screen: 'sessions', terminalRequest: null }))}
+          onSessionReplaced={(message) =>
+            setState((current) => ({
+              ...current,
+              screen: 'sessions',
+              terminalRequest: null,
+              sessionError: `(${message})`,
+            }))
+          }
         />
       )
     }
@@ -159,9 +168,19 @@ export function AppNavigation() {
           onCreate={createSelectedSession}
           onDelete={(item) => void deleteSelectedSession(item.name)}
           onOpen={(item) =>
-            void terminalRequestForSession(state.selectedHost!, item.name, state.defaultAuthToken).then((request) =>
-              setState((current) => ({ ...current, screen: 'terminal', terminalRequest: request })),
-            )
+            void terminalRequestForSession(state.selectedHost!, item.name, state.defaultAuthToken).then(async (request) => {
+              if (Platform.OS === 'android' && hasNativeTerminalModule()) {
+                try {
+                  await openTerminalSession(request)
+                  setState((current) => ({ ...current, sessionError: '' }))
+                } catch (caught) {
+                  const message = asMessage(caught, '(open terminal failed)')
+                  setState((current) => ({ ...current, sessionError: message }))
+                }
+                return
+              }
+              setState((current) => ({ ...current, screen: 'terminal', terminalRequest: request }))
+            })
           }
         />
       )

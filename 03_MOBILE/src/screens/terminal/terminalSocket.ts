@@ -25,7 +25,11 @@ export function createTerminalSocket(
   let disconnectListener: DisconnectListener = () => {}
 
   const socketUrl = attachUrl(request.hostUrl, request.sessionName)
-  const headers = { Authorization: `Bearer ${request.authToken}` }
+  const headers: Record<string, string> = { Authorization: `Bearer ${request.authToken}` }
+  if (request.columns && request.rows) {
+    headers['X-Terminal-Columns'] = String(request.columns)
+    headers['X-Terminal-Rows'] = String(request.rows)
+  }
 
   return {
     connect() {

@@ -10,7 +10,7 @@ type SessionPayload = {
 }
 
 export async function listSessions(client: HttpClient, token: string) {
-  const payload = await client.get<SessionPayload[]>('/api/sessions', token)
+  const payload = (await client.get<SessionPayload[] | null>('/api/sessions', token)) ?? []
   return payload.map((item) => ({
     name: item.name,
     title: item.title,

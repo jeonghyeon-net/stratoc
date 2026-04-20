@@ -11,6 +11,15 @@ it('maps created_at payload into createdAt model', async () => {
   ])
 })
 
+it('treats null session payload as empty list', async () => {
+  const client = {
+    async get() {
+      return null
+    },
+  }
+  await expect(listSessions(client as never, 'secret')).resolves.toEqual([])
+})
+
 it('retries create with fallback name on invalid empty name', async () => {
   const calls: Array<Record<string, unknown>> = []
   const client = {

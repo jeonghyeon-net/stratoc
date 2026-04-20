@@ -59,17 +59,38 @@ RCT_REMAP_METHOD(openTerminalSession,
   NSString *hostURL = payload[@"hostUrl"];
   NSString *sessionName = payload[@"sessionName"];
   NSString *token = payload[@"authToken"] ?: @"";
-  NSURLRequest *request = [self requestForHostURL:hostURL sessionName:sessionName token:token];
+  NSNumber *columns = payload[@"columns"];
+  NSNumber *rows = payload[@"rows"];
+  NSURLRequest *request = [self requestForHostURL:hostURL
+                                      sessionName:sessionName
+                                            token:token
+                                          columns:columns
+                                             rows:rows];
   if (request == nil) {
     reject(@"terminal_open_failed", @"invalid terminal request", nil);
     return;
   }
+
   [self.socket cancelWithCloseCode:NSURLSessionWebSocketCloseCodeNormalClosure reason:nil];
   self.socket = [self.session webSocketTaskWithRequest:request];
   [self.socket resume];
-  [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"opened", @"sessionName": sessionName ?: @"" }];
-  [self receiveNextMessage];
-  resolve(nil);
+
+  __weak typeof(self) weakSelf = self;
+  [self.socket sendPingWithPongReceiveHandler:^(NSError *error) {
+    __strong typeof(self) self = weakSelf;
+    if (self == nil) {
+      return;
+    }
+    if (error != nil) {
+      [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"closed", @"reason": @"error" }];
+      [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"disconnected", @"retrying": @NO, @"message": error.localizedDescription ?: @"connection failed" }];
+      reject(@"terminal_open_failed", error.localizedDescription, error);
+      return;
+    }
+    [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"opened", @"sessionName": sessionName ?: @"" }];
+    [self receiveNextMessage];
+    resolve(nil);
+  }];
 }
 
 RCT_REMAP_METHOD(sendInput,
@@ -77,6 +98,10 @@ RCT_REMAP_METHOD(sendInput,
                  sendInputResolver:(RCTPromiseResolveBlock)resolve
                  rejecter:(RCTPromiseRejectBlock)reject)
 {
+  if (self.socket == nil) {
+    reject(@"terminal_send_failed", @"terminal not connected", nil);
+    return;
+  }
   NSData *data = [text dataUsingEncoding:NSUTF8StringEncoding];
   [self.socket sendMessage:[[NSURLSessionWebSocketMessage alloc] initWithData:data]
          completionHandler:^(NSError *error) {
@@ -94,6 +119,10 @@ RCT_REMAP_METHOD(resize,
                  resizeResolver:(RCTPromiseResolveBlock)resolve
                  rejecter:(RCTPromiseRejectBlock)reject)
 {
+  if (self.socket == nil) {
+    reject(@"terminal_resize_failed", @"terminal not connected", nil);
+    return;
+  }
   NSString *payload = [NSString stringWithFormat:@"{\"type\":\"resize\",\"columns\":%d,\"rows\":%d}", columns.intValue, rows.intValue];
   [self.socket sendMessage:[[NSURLSessionWebSocketMessage alloc] initWithString:payload]
          completionHandler:^(NSError *error) {
@@ -128,6 +157,7 @@ RCT_REMAP_METHOD(close,
       return;
     }
     if (error != nil) {
+      self.socket = nil;
       [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"disconnected", @"retrying": @NO, @"message": error.localizedDescription ?: @"error" }];
       [self sendEventWithName:@"terminalEvent" body:@{ @"type": @"closed", @"reason": @"error" }];
       return;
@@ -148,7 +178,11 @@ RCT_REMAP_METHOD(close,
   }];
 }
 
-- (NSURLRequest *)requestForHostURL:(NSString *)hostURL sessionName:(NSString *)sessionName token:(NSString *)token
+- (NSURLRequest *)requestForHostURL:(NSString *)hostURL
+                        sessionName:(NSString *)sessionName
+                              token:(NSString *)token
+                            columns:(NSNumber *)columns
+                               rows:(NSNumber *)rows
 {
   if (hostURL.length == 0 || sessionName.length == 0) {
     return nil;
@@ -164,6 +198,8 @@ RCT_REMAP_METHOD(close,
   components.fragment = nil;
   NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:components.URL];
   [request setValue:[NSString stringWithFormat:@"Bearer %@", token] forHTTPHeaderField:@"Authorization"];
+  [request setValue:[NSString stringWithFormat:@"%d", columns != nil ? columns.intValue : 120] forHTTPHeaderField:@"X-Terminal-Columns"];
+  [request setValue:[NSString stringWithFormat:@"%d", rows != nil ? rows.intValue : 40] forHTTPHeaderField:@"X-Terminal-Rows"];
   return request;
 }
 
