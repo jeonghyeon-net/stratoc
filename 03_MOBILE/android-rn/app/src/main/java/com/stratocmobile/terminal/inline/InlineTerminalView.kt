@@ -62,6 +62,11 @@ class InlineTerminalView(context: Context) : FrameLayout(context) {
         focusTerminal()
     }
 
+    fun sendKey(keyCode: Int, keyMod: Int) {
+        terminalView?.sendKeyCode(keyCode, keyMod)
+        focusTerminal()
+    }
+
     fun setSoftCtrlArmed(armed: Boolean) {
         terminalView?.setSoftCtrlArmed(armed)
     }

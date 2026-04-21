@@ -21,6 +21,7 @@ let cachedNativeComponent: React.ComponentType<NativeTerminalInlineViewProps> | 
 
 type NativeTerminalInlineHandle = {
   sendSequence: (sequence: string) => void
+  sendKey: (keyCode: number, keyMod: number) => void
   setSoftCtrlArmed: (armed: boolean) => void
   setSoftAltArmed: (armed: boolean) => void
   setSoftShiftArmed: (armed: boolean) => void
@@ -54,6 +55,18 @@ export const NativeTerminalInlineView = React.forwardRef<NativeTerminalInlineHan
         return
       }
       UIManager.dispatchViewManagerCommand(node, command, [sequence])
+    },
+    sendKey(keyCode: number, keyMod: number) {
+      if (Platform.OS !== 'android') {
+        return
+      }
+      const node = findNodeHandle(nativeRef.current)
+      const config = UIManager.getViewManagerConfig?.(COMPONENT_NAME)
+      const command = config?.Commands?.sendKey
+      if (!node || command == null) {
+        return
+      }
+      UIManager.dispatchViewManagerCommand(node, command, [keyCode, keyMod])
     },
     setSoftCtrlArmed(armed: boolean) {
       if (Platform.OS !== 'android') {

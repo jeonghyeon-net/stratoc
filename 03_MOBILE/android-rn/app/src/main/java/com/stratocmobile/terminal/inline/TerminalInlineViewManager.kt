@@ -12,6 +12,7 @@ class TerminalInlineViewManager : SimpleViewManager<InlineTerminalView>() {
     override fun getCommandsMap(): MutableMap<String, Int> {
         return MapBuilder.of(
             "sendSequence", COMMAND_SEND_SEQUENCE,
+            "sendKey", COMMAND_SEND_KEY,
             "setSoftCtrlArmed", COMMAND_SET_SOFT_CTRL_ARMED,
             "setSoftAltArmed", COMMAND_SET_SOFT_ALT_ARMED,
             "setSoftShiftArmed", COMMAND_SET_SOFT_SHIFT_ARMED,
@@ -45,6 +46,7 @@ class TerminalInlineViewManager : SimpleViewManager<InlineTerminalView>() {
     override fun receiveCommand(view: InlineTerminalView, commandId: Int, args: ReadableArray?) {
         when (commandId) {
             COMMAND_SEND_SEQUENCE -> view.sendSequence(args?.getString(0).orEmpty())
+            COMMAND_SEND_KEY -> view.sendKey(args?.getInt(0) ?: 0, args?.getInt(1) ?: 0)
             COMMAND_SET_SOFT_CTRL_ARMED -> view.setSoftCtrlArmed(args?.getBoolean(0) == true)
             COMMAND_SET_SOFT_ALT_ARMED -> view.setSoftAltArmed(args?.getBoolean(0) == true)
             COMMAND_SET_SOFT_SHIFT_ARMED -> view.setSoftShiftArmed(args?.getBoolean(0) == true)
@@ -53,8 +55,9 @@ class TerminalInlineViewManager : SimpleViewManager<InlineTerminalView>() {
 
     companion object {
         private const val COMMAND_SEND_SEQUENCE = 1
-        private const val COMMAND_SET_SOFT_CTRL_ARMED = 2
-        private const val COMMAND_SET_SOFT_ALT_ARMED = 3
-        private const val COMMAND_SET_SOFT_SHIFT_ARMED = 4
+        private const val COMMAND_SEND_KEY = 2
+        private const val COMMAND_SET_SOFT_CTRL_ARMED = 3
+        private const val COMMAND_SET_SOFT_ALT_ARMED = 4
+        private const val COMMAND_SET_SOFT_SHIFT_ARMED = 5
     }
 }

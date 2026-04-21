@@ -188,6 +188,21 @@ public final class NativeRemoteTerminalView extends View {
         emitInput(sequence.getBytes(StandardCharsets.UTF_8), true);
     }
 
+    public void sendKeyCode(int keyCode, int keyMod) {
+        if (mEmulator == null) return;
+        int effectiveKeyMod = keyMod;
+        boolean softCtrlArmed = mSoftCtrlArmed;
+        boolean softAltArmed = mSoftAltArmed;
+        boolean softShiftArmed = mSoftShiftArmed;
+        if (softCtrlArmed) effectiveKeyMod |= KeyHandler.KEYMOD_CTRL;
+        if (softAltArmed) effectiveKeyMod |= KeyHandler.KEYMOD_ALT;
+        if (softShiftArmed) effectiveKeyMod |= KeyHandler.KEYMOD_SHIFT;
+        handleKeyCode(keyCode, effectiveKeyMod);
+        if (softCtrlArmed) updateSoftCtrlArmed(false);
+        if (softAltArmed) updateSoftAltArmed(false);
+        if (softShiftArmed) updateSoftShiftArmed(false);
+    }
+
     public void setSoftCtrlArmed(boolean armed) {
         updateSoftCtrlArmed(armed);
     }

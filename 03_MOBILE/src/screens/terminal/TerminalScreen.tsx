@@ -15,14 +15,18 @@ import { TerminalWebViewHandle, XtermWebView } from './XtermWebView'
 import { NativeTerminalInlineView, hasNativeTerminalInlineView } from '@/bridge/terminal/NativeTerminalInlineView'
 
 const CONNECT_TIMEOUT_MS = 8000
+const KEYMOD_SHIFT = 0x20000000
+const KEYMOD_CTRL = 0x40000000
+const KEYMOD_ALT = -0x80000000
+
 const SPECIAL_KEYS = [
-  { label: 'Esc', sequence: '\u001b' },
-  { label: 'Tab', sequence: '\t' },
-  { label: '↑', sequence: '\u001b[A' },
-  { label: '↓', sequence: '\u001b[B' },
-  { label: '←', sequence: '\u001b[D' },
-  { label: '→', sequence: '\u001b[C' },
-]
+  { label: 'Esc', sequence: '\u001b', keyCode: 111 },
+  { label: 'Tab', sequence: '\t', keyCode: 61 },
+  { label: '↑', sequence: '\u001b[A', keyCode: 19 },
+  { label: '↓', sequence: '\u001b[B', keyCode: 20 },
+  { label: '←', sequence: '\u001b[D', keyCode: 21 },
+  { label: '→', sequence: '\u001b[C', keyCode: 22 },
+] as const
 
 type TerminalViewport = {
   columns: number
@@ -41,7 +45,7 @@ export function TerminalScreen({
   inline?: boolean
 }) {
   const terminalRef = useRef<TerminalWebViewHandle | null>(null)
-  const inlineTerminalRef = useRef<{ sendSequence: (sequence: string) => void; setSoftCtrlArmed: (armed: boolean) => void; setSoftAltArmed: (armed: boolean) => void; setSoftShiftArmed: (armed: boolean) => void } | null>(null)
+  const inlineTerminalRef = useRef<{ sendSequence: (sequence: string) => void; sendKey: (keyCode: number, keyMod: number) => void; setSoftCtrlArmed: (armed: boolean) => void; setSoftAltArmed: (armed: boolean) => void; setSoftShiftArmed: (armed: boolean) => void } | null>(null)
   const keyboardRef = useRef<TextInput | null>(null)
   const socketRef = useRef<TerminalSocket | null>(null)
   const pendingOutputRef = useRef<string[]>([])
@@ -185,20 +189,18 @@ export function TerminalScreen({
     terminalRef.current?.focus()
   }, [])
 
-  const sendSpecialSequence = useCallback((sequence: string) => {
-    if (!sequence) {
-      return
-    }
+  const sendSpecialKey = useCallback((item: typeof SPECIAL_KEYS[number]) => {
     if (usingNativeInline) {
-      inlineTerminalRef.current?.sendSequence(sequence)
+      const keyMod = buildSoftKeyMod(softCtrlArmed, softAltArmed, softShiftArmed)
+      inlineTerminalRef.current?.sendKey(item.keyCode, keyMod)
       disarmSoftCtrl()
       disarmSoftAlt()
       disarmSoftShift()
       return
     }
     focusTerminal()
-    sendInput(sequence)
-  }, [disarmSoftAlt, disarmSoftCtrl, disarmSoftShift, focusTerminal, sendInput, usingNativeInline])
+    sendInput(applySoftModifiersToSpecialSequence(item.sequence, item.label, softCtrlArmed, softAltArmed, softShiftArmed))
+  }, [disarmSoftAlt, disarmSoftCtrl, disarmSoftShift, focusTerminal, sendInput, softAltArmed, softCtrlArmed, softShiftArmed, usingNativeInline])
 
   useEffect(() => {
     connectStartedRef.current = false
@@ -480,7 +482,7 @@ export function TerminalScreen({
           {SPECIAL_KEYS.map((item) => (
             <Pressable
               key={item.label}
-              onPress={() => sendSpecialSequence(item.sequence)}
+              onPress={() => sendSpecialKey(item)}
               style={styles.keyButton}
               testID={`terminal-key-${item.label}`}
             >
@@ -536,6 +538,87 @@ function encodeTerminalText(value: string) {
     bytes[index] = encoded.charCodeAt(index)
   }
   return bytes
+}
+
+function buildSoftKeyMod(ctrlArmed: boolean, altArmed: boolean, shiftArmed: boolean) {
+  let keyMod = 0
+  if (shiftArmed) {
+    keyMod |= KEYMOD_SHIFT
+  }
+  if (altArmed) {
+    keyMod |= KEYMOD_ALT
+  }
+  if (ctrlArmed) {
+    keyMod |= KEYMOD_CTRL
+  }
+  return keyMod
+}
+
+function applySoftModifiersToSpecialSequence(
+  sequence: string,
+  label: string,
+  ctrlArmed: boolean,
+  altArmed: boolean,
+  shiftArmed: boolean,
+) {
+  if (ctrlArmed || altArmed || shiftArmed) {
+    switch (label) {
+      case '↑':
+        return csiSequence('A', ctrlArmed, altArmed, shiftArmed)
+      case '↓':
+        return csiSequence('B', ctrlArmed, altArmed, shiftArmed)
+      case '→':
+        return csiSequence('C', ctrlArmed, altArmed, shiftArmed)
+      case '←':
+        return csiSequence('D', ctrlArmed, altArmed, shiftArmed)
+      case 'Tab':
+        if (shiftArmed && !ctrlArmed && !altArmed) {
+          return '\u001b[Z'
+        }
+        if (altArmed && !ctrlArmed && !shiftArmed) {
+          return '\u001b\t'
+        }
+        break
+      case 'Esc':
+        if (altArmed && !ctrlArmed && !shiftArmed) {
+          return '\u001b\u001b'
+        }
+        break
+      default:
+        break
+    }
+  }
+  return applySoftModifiersToText(sequence, ctrlArmed, altArmed, shiftArmed)
+}
+
+function csiSequence(final: 'A' | 'B' | 'C' | 'D', ctrlArmed: boolean, altArmed: boolean, shiftArmed: boolean) {
+  const modifier = modifierParameter(ctrlArmed, altArmed, shiftArmed)
+  return `\u001b[1;${modifier}${final}`
+}
+
+function modifierParameter(ctrlArmed: boolean, altArmed: boolean, shiftArmed: boolean) {
+  if (ctrlArmed && altArmed && shiftArmed) {
+    return 8
+  }
+  if (ctrlArmed && altArmed) {
+    return 7
+  }
+  if (ctrlArmed && shiftArmed) {
+    return 6
+  }
+  if (ctrlArmed) {
+    return 5
+  }
+  if (altArmed && shiftArmed) {
+    return 4
+  }
+  if (altArmed) {
+    return 3
+  }
+  if (shiftArmed) {
+    return 2
+  }
+  return 1
 }
 
 function applySoftModifiersToText(value: string, ctrlArmed: boolean, altArmed: boolean, shiftArmed: boolean) {

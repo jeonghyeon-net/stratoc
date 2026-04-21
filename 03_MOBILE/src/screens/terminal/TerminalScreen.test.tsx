@@ -7,6 +7,8 @@ const mockOpenTerminalSession = jest.fn().mockResolvedValue(undefined)
 const mockSendTerminalInput = jest.fn().mockResolvedValue(undefined)
 const mockResizeTerminalSession = jest.fn().mockResolvedValue(undefined)
 const mockCloseTerminalSession = jest.fn().mockResolvedValue(undefined)
+const mockInlineSendSequence = jest.fn()
+const mockInlineSendKey = jest.fn()
 let terminalEventListener: ((event: { type: string; message?: string }) => void) | null = null
 
 jest.mock('@/bridge/terminal', () => ({
@@ -28,7 +30,8 @@ jest.mock('@/bridge/terminal/NativeTerminalInlineView', () => {
 
   const NativeTerminalInlineView = React.forwardRef((props: Record<string, unknown>, ref: React.ForwardedRef<unknown>) => {
     React.useImperativeHandle(ref, () => ({
-      sendSequence: jest.fn(),
+      sendSequence: mockInlineSendSequence,
+      sendKey: mockInlineSendKey,
       setSoftCtrlArmed: jest.fn(),
       setSoftAltArmed: jest.fn(),
       setSoftShiftArmed: jest.fn(),
@@ -69,6 +72,8 @@ beforeEach(() => {
   mockSendTerminalInput.mockClear()
   mockResizeTerminalSession.mockClear()
   mockCloseTerminalSession.mockClear()
+  mockInlineSendSequence.mockClear()
+  mockInlineSendKey.mockClear()
 })
 
 it('opens native terminal session after viewport measured and removes fake input controls', async () => {
@@ -126,6 +131,36 @@ it('keeps hidden keyboard input out of android inline native path', async () => 
 
   expect(screen.getByTestId('mock-inline-terminal')).toBeTruthy()
   expect(screen.queryByTestId('terminal-hidden-input')).toBeNull()
+
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform })
+})
+
+it('combines soft modifiers with accessory special keys on android inline path', async () => {
+  const originalPlatform = Platform.OS
+  Object.defineProperty(Platform, 'OS', { configurable: true, value: 'android' })
+
+  render(
+    <TerminalScreen
+      request={{
+        hostUrl: 'https://10.0.0.2:62589',
+        authToken: 'secret',
+        sessionName: 'session-0001',
+        theme: 'system',
+        fontScale: 1,
+      }}
+      onBack={jest.fn()}
+      inline
+    />,
+  )
+
+  fireEvent(screen.getByTestId('terminal-viewport'), 'layout', {
+    nativeEvent: { layout: { width: 900, height: 540 } },
+  })
+
+  fireEvent.press(screen.getByTestId('terminal-key-Alt'))
+  fireEvent.press(screen.getByTestId('terminal-key-↑'))
+
+  expect(mockInlineSendKey).toHaveBeenCalledWith(19, -0x80000000)
 
   Object.defineProperty(Platform, 'OS', { configurable: true, value: originalPlatform })
 })
