@@ -66,6 +66,14 @@ class InlineTerminalView(context: Context) : FrameLayout(context) {
         terminalView?.setSoftCtrlArmed(armed)
     }
 
+    fun setSoftAltArmed(armed: Boolean) {
+        terminalView?.setSoftAltArmed(armed)
+    }
+
+    fun setSoftShiftArmed(armed: Boolean) {
+        terminalView?.setSoftShiftArmed(armed)
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         focusTerminal()
@@ -123,6 +131,14 @@ class InlineTerminalView(context: Context) : FrameLayout(context) {
 
                 override fun onSoftCtrlStateChanged(armed: Boolean) {
                     TerminalModule.emitSoftCtrlState(sessionName, hostUrl, armed)
+                }
+
+                override fun onSoftAltStateChanged(armed: Boolean) {
+                    TerminalModule.emitSoftAltState(sessionName, hostUrl, armed)
+                }
+
+                override fun onSoftShiftStateChanged(armed: Boolean) {
+                    TerminalModule.emitSoftShiftState(sessionName, hostUrl, armed)
                 }
             })
             view.setOnClickListener { focusTerminal() }

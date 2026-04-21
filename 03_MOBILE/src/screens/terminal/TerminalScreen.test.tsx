@@ -30,6 +30,8 @@ jest.mock('@/bridge/terminal/NativeTerminalInlineView', () => {
     React.useImperativeHandle(ref, () => ({
       sendSequence: jest.fn(),
       setSoftCtrlArmed: jest.fn(),
+      setSoftAltArmed: jest.fn(),
+      setSoftShiftArmed: jest.fn(),
     }))
     return React.createElement(View, { ...props, testID: 'mock-inline-terminal' })
   })
@@ -92,6 +94,8 @@ it('opens native terminal session after viewport measured and removes fake input
   })
 
   expect(screen.getByTestId('terminal-key-Ctrl')).toBeTruthy()
+  expect(screen.getByTestId('terminal-key-Alt')).toBeTruthy()
+  expect(screen.getByTestId('terminal-key-Shift')).toBeTruthy()
   expect(screen.getByTestId('terminal-key-Esc')).toBeTruthy()
   expect(screen.getByTestId('terminal-key-→')).toBeTruthy()
   expect(screen.queryByPlaceholderText('command')).toBeNull()

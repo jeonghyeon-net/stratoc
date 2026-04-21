@@ -41,7 +41,7 @@ export function TerminalScreen({
   inline?: boolean
 }) {
   const terminalRef = useRef<TerminalWebViewHandle | null>(null)
-  const inlineTerminalRef = useRef<{ sendSequence: (sequence: string) => void; setSoftCtrlArmed: (armed: boolean) => void } | null>(null)
+  const inlineTerminalRef = useRef<{ sendSequence: (sequence: string) => void; setSoftCtrlArmed: (armed: boolean) => void; setSoftAltArmed: (armed: boolean) => void; setSoftShiftArmed: (armed: boolean) => void } | null>(null)
   const keyboardRef = useRef<TextInput | null>(null)
   const socketRef = useRef<TerminalSocket | null>(null)
   const pendingOutputRef = useRef<string[]>([])
@@ -55,6 +55,8 @@ export function TerminalScreen({
   const [viewport, setViewport] = useState<TerminalViewport | null>(null)
   const [keyboardBuffer, setKeyboardBuffer] = useState('')
   const [softCtrlArmed, setSoftCtrlArmed] = useState(false)
+  const [softAltArmed, setSoftAltArmed] = useState(false)
+  const [softShiftArmed, setSoftShiftArmed] = useState(false)
 
   const sizedRequest = useMemo(() => {
     if (!viewport) {
@@ -93,9 +95,31 @@ export function TerminalScreen({
     }
   }, [usingNativeInline])
 
+  const syncSoftAlt = useCallback((armed: boolean) => {
+    setSoftAltArmed(armed)
+    if (usingNativeInline) {
+      inlineTerminalRef.current?.setSoftAltArmed(armed)
+    }
+  }, [usingNativeInline])
+
+  const syncSoftShift = useCallback((armed: boolean) => {
+    setSoftShiftArmed(armed)
+    if (usingNativeInline) {
+      inlineTerminalRef.current?.setSoftShiftArmed(armed)
+    }
+  }, [usingNativeInline])
+
   const disarmSoftCtrl = useCallback(() => {
     syncSoftCtrl(false)
   }, [syncSoftCtrl])
+
+  const disarmSoftAlt = useCallback(() => {
+    syncSoftAlt(false)
+  }, [syncSoftAlt])
+
+  const disarmSoftShift = useCallback(() => {
+    syncSoftShift(false)
+  }, [syncSoftShift])
 
   const armSoftCtrl = useCallback(() => {
     syncSoftCtrl(true)
@@ -105,17 +129,39 @@ export function TerminalScreen({
     }
   }, [syncSoftCtrl, usingNativeInline])
 
+  const armSoftAlt = useCallback(() => {
+    syncSoftAlt(true)
+    if (!usingNativeInline) {
+      keyboardRef.current?.focus()
+      terminalRef.current?.focus()
+    }
+  }, [syncSoftAlt, usingNativeInline])
+
+  const armSoftShift = useCallback(() => {
+    syncSoftShift(true)
+    if (!usingNativeInline) {
+      keyboardRef.current?.focus()
+      terminalRef.current?.focus()
+    }
+  }, [syncSoftShift, usingNativeInline])
+
   const sendInput = useCallback((value: string) => {
     if (!value) {
       return
     }
-    const nextValue = softCtrlArmed ? applySoftCtrlToText(value) : value
+    const nextValue = applySoftModifiersToText(value, softCtrlArmed, softAltArmed, softShiftArmed)
     if (usingNativeActivity) {
       void sendTerminalInput(nextValue).catch((error) => {
         setStatus(asMessage(error, 'send failed'))
       })
       if (softCtrlArmed) {
         disarmSoftCtrl()
+      }
+      if (softAltArmed) {
+        disarmSoftAlt()
+      }
+      if (softShiftArmed) {
+        disarmSoftShift()
       }
       return
     }
@@ -126,7 +172,13 @@ export function TerminalScreen({
     if (softCtrlArmed) {
       disarmSoftCtrl()
     }
-  }, [disarmSoftCtrl, softCtrlArmed, usingNativeActivity, usingNativeInline])
+    if (softAltArmed) {
+      disarmSoftAlt()
+    }
+    if (softShiftArmed) {
+      disarmSoftShift()
+    }
+  }, [disarmSoftAlt, disarmSoftCtrl, disarmSoftShift, softAltArmed, softCtrlArmed, softShiftArmed, usingNativeActivity, usingNativeInline])
 
   const focusTerminal = useCallback(() => {
     keyboardRef.current?.focus()
@@ -140,11 +192,13 @@ export function TerminalScreen({
     if (usingNativeInline) {
       inlineTerminalRef.current?.sendSequence(sequence)
       disarmSoftCtrl()
+      disarmSoftAlt()
+      disarmSoftShift()
       return
     }
     focusTerminal()
     sendInput(sequence)
-  }, [disarmSoftCtrl, focusTerminal, sendInput, usingNativeInline])
+  }, [disarmSoftAlt, disarmSoftCtrl, disarmSoftShift, focusTerminal, sendInput, usingNativeInline])
 
   useEffect(() => {
     connectStartedRef.current = false
@@ -174,6 +228,14 @@ export function TerminalScreen({
         syncSoftCtrl(event.armed)
         return
       }
+      if (event.type === 'soft-alt-state') {
+        syncSoftAlt(event.armed)
+        return
+      }
+      if (event.type === 'soft-shift-state') {
+        syncSoftShift(event.armed)
+        return
+      }
       handleTerminalEvent(event, setStatus, clearConnectTimeout)
       if ((event.type === 'disconnected' || event.type === 'closed') && isReplacedConnection(event.message) && !exitHandledRef.current) {
         exitHandledRef.current = true
@@ -184,7 +246,7 @@ export function TerminalScreen({
       outputSubscription.remove()
       eventSubscription.remove()
     }
-  }, [clearConnectTimeout, onSessionReplaced, request.sessionName, syncSoftCtrl, usingNativeActivity, usingNativeInline, writeOutput])
+  }, [clearConnectTimeout, onSessionReplaced, request.sessionName, syncSoftAlt, syncSoftCtrl, syncSoftShift, usingNativeActivity, usingNativeInline, writeOutput])
 
   useEffect(() => {
     if (!viewport || connectStartedRef.current) {
@@ -389,6 +451,32 @@ export function TerminalScreen({
           >
             <Text style={[styles.keyButtonText, softCtrlArmed && styles.keyButtonTextActive]}>Ctrl</Text>
           </Pressable>
+          <Pressable
+            onPress={() => {
+              if (softAltArmed) {
+                disarmSoftAlt()
+                return
+              }
+              armSoftAlt()
+            }}
+            style={[styles.keyButton, softAltArmed && styles.keyButtonActive]}
+            testID='terminal-key-Alt'
+          >
+            <Text style={[styles.keyButtonText, softAltArmed && styles.keyButtonTextActive]}>Alt</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (softShiftArmed) {
+                disarmSoftShift()
+                return
+              }
+              armSoftShift()
+            }}
+            style={[styles.keyButton, softShiftArmed && styles.keyButtonActive]}
+            testID='terminal-key-Shift'
+          >
+            <Text style={[styles.keyButtonText, softShiftArmed && styles.keyButtonTextActive]}>Shift</Text>
+          </Pressable>
           {SPECIAL_KEYS.map((item) => (
             <Pressable
               key={item.label}
@@ -450,12 +538,48 @@ function encodeTerminalText(value: string) {
   return bytes
 }
 
-function applySoftCtrlToText(value: string) {
+function applySoftModifiersToText(value: string, ctrlArmed: boolean, altArmed: boolean, shiftArmed: boolean) {
   if (!value) {
     return value
   }
   const [first = '', ...rest] = Array.from(value)
-  return `${ctrlify(first)}${rest.join('')}`
+  const shifted = shiftArmed ? shiftify(first) : first
+  const firstValue = ctrlArmed ? ctrlify(shifted) : shifted
+  const prefix = altArmed ? '\u001b' : ''
+  return `${prefix}${firstValue}${rest.join('')}`
+}
+
+function shiftify(char: string) {
+  if (char.length === 0) {
+    return char
+  }
+  switch (char) {
+    case '`': return '~'
+    case '1': return '!'
+    case '2': return '@'
+    case '3': return '#'
+    case '4': return '$'
+    case '5': return '%'
+    case '6': return '^'
+    case '7': return '&'
+    case '8': return '*'
+    case '9': return '('
+    case '0': return ')'
+    case '-': return '_'
+    case '=': return '+'
+    case '[': return '{'
+    case ']': return '}'
+    case '\\': return '|'
+    case ';': return ':'
+    case "'": return '"'
+    case ',': return '<'
+    case '.': return '>'
+    case '/': return '?'
+    default: {
+      const upper = char.toUpperCase()
+      return upper.length === char.length ? upper : char
+    }
+  }
 }
 
 function ctrlify(char: string) {

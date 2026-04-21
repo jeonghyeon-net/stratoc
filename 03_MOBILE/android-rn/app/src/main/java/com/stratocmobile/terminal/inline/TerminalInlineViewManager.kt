@@ -13,6 +13,8 @@ class TerminalInlineViewManager : SimpleViewManager<InlineTerminalView>() {
         return MapBuilder.of(
             "sendSequence", COMMAND_SEND_SEQUENCE,
             "setSoftCtrlArmed", COMMAND_SET_SOFT_CTRL_ARMED,
+            "setSoftAltArmed", COMMAND_SET_SOFT_ALT_ARMED,
+            "setSoftShiftArmed", COMMAND_SET_SOFT_SHIFT_ARMED,
         )
     }
 
@@ -44,11 +46,15 @@ class TerminalInlineViewManager : SimpleViewManager<InlineTerminalView>() {
         when (commandId) {
             COMMAND_SEND_SEQUENCE -> view.sendSequence(args?.getString(0).orEmpty())
             COMMAND_SET_SOFT_CTRL_ARMED -> view.setSoftCtrlArmed(args?.getBoolean(0) == true)
+            COMMAND_SET_SOFT_ALT_ARMED -> view.setSoftAltArmed(args?.getBoolean(0) == true)
+            COMMAND_SET_SOFT_SHIFT_ARMED -> view.setSoftShiftArmed(args?.getBoolean(0) == true)
         }
     }
 
     companion object {
         private const val COMMAND_SEND_SEQUENCE = 1
         private const val COMMAND_SET_SOFT_CTRL_ARMED = 2
+        private const val COMMAND_SET_SOFT_ALT_ARMED = 3
+        private const val COMMAND_SET_SOFT_SHIFT_ARMED = 4
     }
 }

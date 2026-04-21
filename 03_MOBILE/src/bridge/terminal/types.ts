@@ -17,3 +17,5 @@ export type TerminalSessionEvent =
   | { type: 'session-not-found'; sessionName?: string; hostUrl?: string }
   | { type: 'certificate-changed'; hostUrl: string; sessionName?: string }
   | { type: 'soft-ctrl-state'; armed: boolean; sessionName?: string; hostUrl?: string }
+  | { type: 'soft-alt-state'; armed: boolean; sessionName?: string; hostUrl?: string }
+  | { type: 'soft-shift-state'; armed: boolean; sessionName?: string; hostUrl?: string }

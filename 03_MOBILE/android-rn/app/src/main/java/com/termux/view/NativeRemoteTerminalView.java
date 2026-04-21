@@ -40,6 +40,8 @@ public final class NativeRemoteTerminalView extends View {
         void onTitleChanged(@Nullable String title);
         void onSingleTapUp();
         void onSoftCtrlStateChanged(boolean armed);
+        void onSoftAltStateChanged(boolean armed);
+        void onSoftShiftStateChanged(boolean armed);
     }
 
     public TerminalEmulator mEmulator;
@@ -61,6 +63,8 @@ public final class NativeRemoteTerminalView extends View {
     private int mColumns = 80;
     private int mRows = 24;
     private boolean mSoftCtrlArmed;
+    private boolean mSoftAltArmed;
+    private boolean mSoftShiftArmed;
     private Callbacks mCallbacks;
     private RemoteTerminalInputConnection mInputConnection;
 
@@ -186,6 +190,14 @@ public final class NativeRemoteTerminalView extends View {
 
     public void setSoftCtrlArmed(boolean armed) {
         updateSoftCtrlArmed(armed);
+    }
+
+    public void setSoftAltArmed(boolean armed) {
+        updateSoftAltArmed(armed);
+    }
+
+    public void setSoftShiftArmed(boolean armed) {
+        updateSoftShiftArmed(armed);
     }
 
     public void sendPastedText(String text) {
@@ -514,9 +526,11 @@ public final class NativeRemoteTerminalView extends View {
 
         final int metaState = event.getMetaState();
         final boolean softCtrlArmed = mSoftCtrlArmed;
+        final boolean softAltArmed = mSoftAltArmed;
+        final boolean softShiftArmed = mSoftShiftArmed;
         final boolean controlDown = event.isCtrlPressed() || softCtrlArmed;
-        final boolean leftAltDown = (metaState & KeyEvent.META_ALT_LEFT_ON) != 0;
-        final boolean shiftDown = event.isShiftPressed();
+        final boolean leftAltDown = ((metaState & KeyEvent.META_ALT_LEFT_ON) != 0) || softAltArmed;
+        final boolean shiftDown = event.isShiftPressed() || softShiftArmed;
         final boolean rightAltDownFromEvent = (metaState & KeyEvent.META_ALT_RIGHT_ON) != 0;
 
         int keyMod = 0;
@@ -526,6 +540,8 @@ public final class NativeRemoteTerminalView extends View {
         if (event.isNumLockOn()) keyMod |= KeyHandler.KEYMOD_NUM_LOCK;
         if (!event.isFunctionPressed() && handleKeyCode(keyCode, keyMod)) {
             if (softCtrlArmed) updateSoftCtrlArmed(false);
+            if (softAltArmed) updateSoftAltArmed(false);
+            if (softShiftArmed) updateSoftShiftArmed(false);
             return true;
         }
 
@@ -549,6 +565,8 @@ public final class NativeRemoteTerminalView extends View {
             inputCodePoint(event.getDeviceId(), result, controlDown, leftAltDown);
         }
         if (softCtrlArmed) updateSoftCtrlArmed(false);
+        if (softAltArmed) updateSoftAltArmed(false);
+        if (softShiftArmed) updateSoftShiftArmed(false);
         if (mCombiningAccent != oldCombiningAccent) invalidate();
         return true;
     }
@@ -655,7 +673,11 @@ public final class NativeRemoteTerminalView extends View {
         if (text == null || text.length() == 0) return;
         stopTextSelectionMode();
         boolean softCtrlArmed = mSoftCtrlArmed;
+        boolean softAltArmed = mSoftAltArmed;
+        boolean softShiftArmed = mSoftShiftArmed;
         if (softCtrlArmed) updateSoftCtrlArmed(false);
+        if (softAltArmed) updateSoftAltArmed(false);
+        if (softShiftArmed) updateSoftShiftArmed(false);
         int textLengthInChars = text.length();
         for (int i = 0; i < textLengthInChars; i++) {
             char firstChar = text.charAt(i);
@@ -671,7 +693,14 @@ public final class NativeRemoteTerminalView extends View {
             }
 
             boolean ctrlHeld = softCtrlArmed;
+            boolean altHeld = softAltArmed;
+            boolean shiftHeld = softShiftArmed;
             softCtrlArmed = false;
+            softAltArmed = false;
+            softShiftArmed = false;
+            if (shiftHeld) {
+                codePoint = shiftCodePoint(codePoint);
+            }
             if (ctrlHeld && handleSoftCtrlCodePoint(codePoint)) {
                 continue;
             }
@@ -686,7 +715,7 @@ public final class NativeRemoteTerminalView extends View {
                     default: codePoint += 96; break;
                 }
             }
-            inputCodePoint(KEY_EVENT_SOURCE_SOFT_KEYBOARD, codePoint, ctrlHeld, false);
+            inputCodePoint(KEY_EVENT_SOURCE_SOFT_KEYBOARD, codePoint, ctrlHeld, altHeld);
         }
     }
 
@@ -735,10 +764,52 @@ public final class NativeRemoteTerminalView extends View {
         return null;
     }
 
+    private int shiftCodePoint(int codePoint) {
+        if (codePoint >= 'a' && codePoint <= 'z') {
+            return Character.toUpperCase(codePoint);
+        }
+        switch (codePoint) {
+            case '`': return '~';
+            case '1': return '!';
+            case '2': return '@';
+            case '3': return '#';
+            case '4': return '$';
+            case '5': return '%';
+            case '6': return '^';
+            case '7': return '&';
+            case '8': return '*';
+            case '9': return '(';
+            case '0': return ')';
+            case '-': return '_';
+            case '=': return '+';
+            case '[': return '{';
+            case ']': return '}';
+            case '\\': return '|';
+            case ';': return ':';
+            case '\'': return '"';
+            case ',': return '<';
+            case '.': return '>';
+            case '/': return '?';
+            default: return codePoint;
+        }
+    }
+
     private void updateSoftCtrlArmed(boolean armed) {
         if (mSoftCtrlArmed == armed) return;
         mSoftCtrlArmed = armed;
         if (mCallbacks != null) mCallbacks.onSoftCtrlStateChanged(armed);
+    }
+
+    private void updateSoftAltArmed(boolean armed) {
+        if (mSoftAltArmed == armed) return;
+        mSoftAltArmed = armed;
+        if (mCallbacks != null) mCallbacks.onSoftAltStateChanged(armed);
+    }
+
+    private void updateSoftShiftArmed(boolean armed) {
+        if (mSoftShiftArmed == armed) return;
+        mSoftShiftArmed = armed;
+        if (mCallbacks != null) mCallbacks.onSoftShiftStateChanged(armed);
     }
 
     private void emitCodePoint(boolean prependEscape, int codePoint) {

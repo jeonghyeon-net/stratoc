@@ -187,6 +187,10 @@ class TerminalActivity : Activity() {
                 }
 
                 override fun onSoftCtrlStateChanged(armed: Boolean) = Unit
+
+                override fun onSoftAltStateChanged(armed: Boolean) = Unit
+
+                override fun onSoftShiftStateChanged(armed: Boolean) = Unit
             })
             setTerminalFontScale(fontScale)
             setOnClickListener { focusTerminal() }

@@ -106,6 +106,24 @@ class TerminalModule(private val context: ReactApplicationContext) : ReactContex
             })
         }
 
+        fun emitSoftAltState(sessionName: String, hostUrl: String, armed: Boolean) {
+            instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
+                putString("type", "soft-alt-state")
+                putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
+                putBoolean("armed", armed)
+            })
+        }
+
+        fun emitSoftShiftState(sessionName: String, hostUrl: String, armed: Boolean) {
+            instance?.get()?.emitEvent("terminalEvent", Arguments.createMap().apply {
+                putString("type", "soft-shift-state")
+                putString("sessionName", sessionName)
+                putString("hostUrl", hostUrl)
+                putBoolean("armed", armed)
+            })
+        }
+
         fun log(message: String) {
             Log.d("StratocTerminal", message)
         }

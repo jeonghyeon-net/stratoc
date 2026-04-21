@@ -559,7 +559,9 @@ const styles = StyleSheet.create({
     backgroundColor: appColors.background,
   },
   sidebar: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'stretch',
     backgroundColor: appColors.surface,
     borderRightWidth: 1,
     borderRightColor: appColors.border,
