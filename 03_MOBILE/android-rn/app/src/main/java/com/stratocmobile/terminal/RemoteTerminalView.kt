@@ -3,7 +3,6 @@ package com.stratocmobile.terminal
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -24,7 +23,7 @@ class RemoteTerminalView @JvmOverloads constructor(
         onBell = { onBell?.invoke() },
         onColorsChanged = { postInvalidateOnAnimation() },
     )
-    private var renderer = TerminalRenderer(28, Typeface.MONOSPACE)
+    private var renderer = TerminalRenderer(28, TerminalTypeface.terminal(context))
     private var emulator = TerminalEmulator(
         terminalOutput,
         80,

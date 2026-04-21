@@ -3,7 +3,6 @@ package com.termux.view;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Typeface;
 import android.view.ActionMode;
 import android.view.InputDevice;
 import android.view.KeyCharacterMap;
@@ -23,6 +22,7 @@ import com.termux.terminal.TerminalEmulator;
 import com.termux.terminal.TerminalOutput;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
+import com.stratocmobile.terminal.TerminalTypeface;
 import com.stratocmobile.terminal.input.RemoteTerminalInputConnection;
 import com.stratocmobile.terminal.input.TerminalInputIntent;
 import com.termux.view.textselection.RemoteTextSelectionCursorController;
@@ -74,7 +74,7 @@ public final class NativeRemoteTerminalView extends View {
 
     public NativeRemoteTerminalView(Context context, @Nullable android.util.AttributeSet attrs) {
         super(context, attrs);
-        mRenderer = new TerminalRenderer(28, Typeface.MONOSPACE);
+        mRenderer = new TerminalRenderer(28, TerminalTypeface.terminal(context));
         mGestureRecognizer = new GestureAndScaleRecognizer(context, new GestureAndScaleRecognizer.Listener() {
             boolean scrolledWithFinger;
 
@@ -210,7 +210,7 @@ public final class NativeRemoteTerminalView extends View {
     public void setTerminalFontScale(float scale) {
         float clamped = Math.max(0.85f, Math.min(1.45f, scale));
         int fontSize = Math.max(18, Math.round(28f * clamped));
-        mRenderer = new TerminalRenderer(fontSize, Typeface.MONOSPACE);
+        mRenderer = new TerminalRenderer(fontSize, TerminalTypeface.terminal(getContext()));
         updateSize();
         invalidate();
     }
